@@ -1,91 +1,91 @@
-GRIMOIRE
+GRIMOIRE — Offline Book Reader for Your Browser
 
-Автономная читалка для браузера. Все данные остаются на устройстве: без аккаунтов, серверов и передачи данных.
+A self-contained web reader with a local library. No accounts, no servers, no tracking — your books never leave your device.
 
-Открыть читалку: https://princessbublgum03-alt.github.io/grimoire-reader/
+Open the reader: https://princessbublgum03-alt.github.io/grimoire-reader/
 
-GRIMOIRE — одностраничное веб-приложение (один файл index.html), которое превращает браузер телефона или компьютера в читалку с локальной библиотекой. Книги хранятся в браузере (IndexedDB), доступны офлайн и никуда не отправляются.
+GRIMOIRE is a single-page web application (one index.html file) that turns any browser — phone or desktop — into a full-featured e-book reader with a private library. Books are stored locally in your browser (IndexedDB), work offline, and are never uploaded anywhere.
 
-Возможности
+Features
 
-Библиотека
+Library
 
-Поддержка форматов: EPUB, FB2, FB2.ZIP, TXT, MD, MOBI, PRC, AZW, AZW3
+Supported formats: EPUB, FB2, FB2.ZIP, TXT, MD, MOBI, PRC, AZW, AZW3
 
-Импорт по одной книге или целой папки сразу
+Import books one by one or add an entire folder at once
 
-Автоматическое чтение названия, автора и обложки из файла; при отсутствии обложки генерируется карточка
+Automatic extraction of title, author, and cover art from the book file; if a book has no cover, a clean generated card is created
 
-Прогресс чтения отображается на карточке книги
+Reading progress is shown directly on each book card
 
-Чтение
+Reading
 
-Три темы оформления: Бездна (тёмная), Пергамент (светлая) и Пустота (чёрно-серая)
+Three visual themes: Abyss (dark), Parchment (light), and Void (black and gray)
 
-Ночной фильтр с регулируемой интенсивностью
+Night filter with adjustable intensity
 
-Девять шрифтов, включая Literata, Lora, Spectral, Crimson Pro и Merriweather
+Nine reading fonts, including Literata, Lora, Spectral, Crimson Pro, and Merriweather
 
-Настройка размера текста, межстрочного интервала, ширины колонки и выравнивания
+Adjustable text size, line height, column width, and text alignment
 
-Режим фокуса: подсвечивается только абзац, который читается в данный момент
+Focus mode: only the paragraph you are currently reading stays highlighted
 
-Оглавление, поиск по книге, автосохранение позиции
+Table of contents, full-text search, and automatic position saving
 
-Инструменты
+Reading tools
 
-«Вникнуть»: выделите термин, и читалка найдёт в книге предложения-определения
+"Insight": highlight any term and the reader finds definition-like sentences elsewhere in the book
 
-«Суть главы»: автоматическое резюме ключевых мыслей главы
+"Chapter gist": automatic summary of the key ideas of the current chapter
 
-Цитаты и заметки с комментариями
+Quotes and notes with your own comments
 
-Глоссарий терминов по каждой книге
+A per-book glossary of collected terms
 
-Экспорт заметок, глоссария и закладок в JSON
+Export of notes, glossary, and bookmarks to JSON
 
-Чтение вслух и скорость
+Read aloud and speed reading
 
-Синтез речи (TTS): озвучивание книги или выделенного фрагмента
+Text-to-speech (TTS): listen to a chapter or a selected passage
 
-Скорочтение (RSVP): слова выводятся по одному с точкой фиксации, 100–1000 слов в минуту
+RSVP speed reading: words are shown one at a time at the optimal fixation point, 100–1000 words per minute
 
-Автоскролл с настраиваемой скоростью
+Auto-scroll with adjustable speed
 
-Приватность и офлайн-режим
+Privacy and offline mode
 
-Все книги, прогресс, заметки и настройки хранятся только на устройстве (IndexedDB)
+All books, progress, notes, and settings are stored only on your device (IndexedDB)
 
-Устанавливается как PWA-приложение: «Добавить на главный экран»
+Installable as a PWA: use "Add to Home Screen" on your phone
 
-Работает офлайн после первого открытия
+Works offline after the first visit
 
-Без регистрации, аналитики и внешних запросов с данными пользователя
+No sign-up, no analytics, no requests that send your data anywhere
 
-Использование
+Getting started
 
-Откройте читалку в браузере по ссылке выше
+Open the reader in your browser using the link above
 
-Нажмите «+» и выберите книги или папку с книгами
+Press "+" and select your books (or a whole folder)
 
-Нажмите на обложку, чтобы начать чтение
+Tap a cover to start reading
 
-На Android (Chrome) и iOS (Safari) выберите «Добавить на главный экран», чтобы установить приложение
+On Android (Chrome) or iOS (Safari), choose "Add to Home Screen" to install it as an app
 
-Примечание: при очистке данных браузера библиотека удаляется. Для сохранения заметок и закладок используйте экспорт JSON в настройках.
+Note: clearing your browser data deletes the library. Use the JSON export in Settings to back up your notes and bookmarks.
 
-Технические детали
+Technical details
 
-Один самодостаточный файл index.html, без сборки
+A single self-contained index.html file, no build step required
 
-epub.js — рендеринг EPUB
+epub.js for EPUB rendering
 
-JSZip — разбор архивов и резервный парсер EPUB
+JSZip for archive handling and as a fallback EPUB parser
 
-IndexedDB — хранилище; Service Worker и PWA — офлайн-режим
+IndexedDB for storage; Service Worker and PWA for offline support
 
-Собственные парсеры FB2, MOBI (PalmDoc), TXT и Markdown
+Custom parsers for FB2, MOBI (PalmDoc), TXT, and Markdown
 
-Лицензия
+License
 
-BSD-2-Clause (наследует лицензию epub.js)
+BSD-2-Clause (inherits the epub.js license)
