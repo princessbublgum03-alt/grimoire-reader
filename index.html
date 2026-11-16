@@ -14,7 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Literata:wght@400;600&family=Lora:wght@400;600&family=Spectral:wght@400;600&family=Crimson+Pro:wght@400;600&family=Merriweather:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.93/epub.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/epubjs/0.3.93/epub.min.js"></script>
 <style>
   :root{
     --bg:#0a0a0c; --bg-2:#101014; --panel:rgba(20,20,25,.72); --panel-solid:#141419;
@@ -1125,16 +1125,92 @@ function parseMOBI(buf) {
 }
 
 async function readEpubMeta(buf) {
-  if (typeof ePub === 'undefined') throw new Error('epub.js не загрузился');
-  let book = null;
-  try { book = ePub(buf.slice(0)); await book.ready; } catch (e) { throw new Error('EPUB повреждён'); }
-  let title = '', author = '', cover = null;
-  try { const md = await book.loaded.metadata || {}; title = (md.title || '').trim(); author = (md.creator || '').trim(); } catch (e) {}
+  let meta = null;
+  if (typeof ePub !== 'undefined') {
+    let book = null;
+    try {
+      book = ePub(buf.slice(0)); await book.ready;
+      let title = '', author = '', cover = null;
+      try { const md = await book.loaded.metadata || {}; title = (md.title || '').trim(); author = (md.creator || '').trim(); } catch (e) {}
+      try {
+        const curl = await book.coverUrl();
+        if (curl) {
+          cover = await new Promise(res => {
+            fetch(curl).then(r => r.blob()).then(bl => {
+              const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => res(null); fr.readAsDataURL(bl);
+            }).catch(() => res(null));
+          });
+        }
+      } catch (e) {}
+      meta = { title, author, cover };
+    } catch (e) { meta = null; }
+    try { if (book) book.destroy(); } catch (e) {}
+  }
+  if (!meta || !meta.title || !meta.cover) {
+    try {
+      const fb = await epubMetaFromZip(buf);
+      if (fb) {
+        meta = meta || { title: '', author: '', cover: null };
+        if (!meta.title && fb.title) meta.title = fb.title;
+        if (!meta.author && fb.author) meta.author = fb.author;
+        if (!meta.cover && fb.cover) meta.cover = fb.cover;
+      }
+    } catch (e) {}
+  }
+  if (!meta) throw new Error('EPUB повреждён');
+  return meta;
+}
+
+/* Резервный разбор метаданных EPUB через JSZip — работает даже без epub.js */
+async function epubMetaFromZip(buf) {
+  if (typeof JSZip === 'undefined') return null;
+  const zip = await JSZip.loadAsync(buf);
+  let opfPath = null;
+  const containerFile = zip.file('META-INF/container.xml');
+  if (containerFile) {
+    const c = await containerFile.async('string');
+    const m = c.match(/full-path\s*=\s*"([^"]+)"/i);
+    if (m) opfPath = m[1];
+  }
+  let opfFile = opfPath ? zip.file(opfPath) : null;
+  if (!opfFile) {
+    const cand = Object.keys(zip.files).find(n => /\.opf$/i.test(n));
+    if (cand) { opfFile = zip.file(cand); opfPath = cand; }
+  }
+  if (!opfFile) return null;
+  const opf = await opfFile.async('string');
+  const pick = re => { const m = opf.match(re); return m ? m[1].replace(/<[^>]+>/g, '').trim() : ''; };
+  const title = pick(/<dc:title[^>]*>([\s\S]*?)<\/dc:title>/i);
+  const author = pick(/<dc:creator[^>]*>([\s\S]*?)<\/dc:creator>/i);
+  let cover = null;
   try {
-    const curl = await book.coverUrl();
-    if (curl) cover = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(new Blob([curl])) });
+    let href = null;
+    const im = opf.match(/<item[^>]*properties\s*=\s*["'][^"']*cover-image[^"']*["'][^>]*>/i);
+    if (im) href = (im[0].match(/href\s*=\s*["']([^"']+)["']/i) || [])[1];
+    if (!href) {
+      const cm = opf.match(/<meta[^>]*name\s*=\s*["']cover["'][^>]*content\s*=\s*["']([^"']+)["']/i)
+              || opf.match(/<meta[^>]*content\s*=\s*["']([^"']+)["'][^>]*name\s*=\s*["']cover["']/i);
+      if (cm) {
+        const itemRe = new RegExp('<item[^>]*id\\s*=\\s*["\']' + escRe(cm[1]) + '["\'][^>]*>', 'i');
+        const im2 = opf.match(itemRe);
+        if (im2) href = (im2[0].match(/href\s*=\s*["']([^"']+)["']/i) || [])[1];
+      }
+    }
+    if (href) {
+      const base = (opfPath || '').split('/').slice(0, -1).join('/');
+      const clean = href.replace(/^\.\//, '');
+      const full = base ? base + '/' + clean : clean;
+      const fileName = clean.split('/').pop();
+      const cf = zip.file(decodeURIComponent(full)) || zip.file(full)
+        || zip.file(Object.keys(zip.files).find(n => n.endsWith('/' + fileName) || n === fileName) || '');
+      if (cf) {
+        const b64 = await cf.async('base64');
+        const ext = (fileName.split('.').pop() || '').toLowerCase();
+        const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'svg' ? 'image/svg+xml' : 'image/jpeg';
+        cover = 'data:' + mime + ';base64,' + b64;
+      }
+    }
   } catch (e) {}
-  try { book.destroy(); } catch (e) {}
   return { title, author, cover };
 }
 
@@ -1939,6 +2015,8 @@ function closeSheet() { if (activeSheet && activeSheet._close) activeSheet._clos
 
 function confirmDialog(text, okLabel = 'OK') {
   return new Promise(resolve => {
+    let settled = false;
+    const settle = v => { if (!settled) { settled = true; resolve(v); } };
     const ov = openSheet('Подтверждение', `
       <div class="scroll-body"><p style="text-align:left">${escHTML(text)}</p></div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:22px">
@@ -1948,9 +2026,11 @@ function confirmDialog(text, okLabel = 'OK') {
     `);
     ov._body.addEventListener('click', e => {
       const b = e.target.closest('[data-act]'); if (!b) return;
-      closeSheet(); resolve(b.dataset.act === 'ok');
+      settle(b.dataset.act === 'ok');
+      closeSheet();
     });
-    ov._close = ((orig) => () => { orig(); resolve(false); })(ov._close);
+    const origClose = ov._close;
+    ov._close = () => { origClose(); settle(false); };
   });
 }
 
@@ -2135,7 +2215,7 @@ function bindSettingsBody(root) {
     if (!(await confirmDialog('Удалить все книги, заметки и прогресс?', 'Удалить всё'))) return openSettings();
     await DB.clear('books'); await DB.clear('files'); await DB.clear('progress');
     await DB.clear('glossary'); await DB.clear('notes'); await DB.clear('bookmarks'); await DB.clear('kv');
-    fullTextCache = {}; coverCache.clear();
+    Object.keys(fullTextCache).forEach(k => delete fullTextCache[k]); coverCache.clear();
     closeSheet(); await loadLibrary(); toast('Всё удалено');
   });
 }
