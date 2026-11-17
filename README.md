@@ -1,91 +1,88 @@
-GRIMOIRE — Offline Book Reader for Your Browser
+<div align="center">
 
+# GRIMOIRE
+
+**Offline Book Reader for Your Browser**  
 A self-contained web reader with a local library. No accounts, no servers, no tracking — your books never leave your device.
 
-Open the reader: https://princessbublgum03-alt.github.io/grimoire-reader/
+[Open GRIMOIRE](https://github.io)
 
-GRIMOIRE is a single-page web application (one index.html file) that turns any browser — phone or desktop — into a full-featured e-book reader with a private library. Books are stored locally in your browser (IndexedDB), work offline, and are never uploaded anywhere.
+<br>
 
-Features
+<img src="screenshot.png" alt="GRIMOIRE Interface" width="320">
 
-Library
+</div>
 
-Supported formats: EPUB, FB2, FB2.ZIP, TXT, MD, MOBI, PRC, AZW, AZW3
+---
 
-Import books one by one or add an entire folder at once
+### Overview
+GRIMOIRE is a single-page web application packed into one self-contained `index.html` file. It turns any phone or desktop browser into a full-featured e-book reader. All books, bookmarks, and settings are stored locally in your browser (`IndexedDB`), work offline, and are never uploaded anywhere.
 
-Automatic extraction of title, author, and cover art from the book file; if a book has no cover, a clean generated card is created
+### Key Features
 
-Reading progress is shown directly on each book card
+**Library**
+* **Supported formats:** `EPUB`, `FB2`, `FB2.ZIP`, `MOBI`, `PRC`, `AZW`, `AZW3`, `TXT`, `MD`, as well as `DOCX` and `HTML`.
+* **Import:** Add individual files or entire folders at once.
+* **Cataloging:** Automatic extraction of metadata and cover art (or a clean generated card if missing), with reading progress shown directly on each book card.
 
-Reading
+**Reading & Typography**
+* **Themes:** Three visual themes (*Abyss* — dark, *Parchment* — light, *Void* — monochrome) and an adjustable night filter.
+* **Fonts & Layout:** Nine reading typefaces (including *Literata*, *Lora*, *Spectral*, *Crimson Pro*, *Merriweather*), customizable font size, line height, column width, and text alignment.
+* **Focus:** Focus mode highlighting only the active paragraph, table of contents, full-text search, and automatic position saving.
 
-Three visual themes: Abyss (dark), Parchment (light), and Void (black and gray)
+**Reading Tools**
+* **Insight:** Highlight any term or character name to find definition-like sentences elsewhere in the book.
+* **Chapter Gist:** Automatic summary of key ideas in the current chapter.
+* **Notes & Glossary:** Save quotes with personal comments, build a per-book glossary of terms, and export data to `JSON`.
 
-Night filter with adjustable intensity
+**Audio & Speed Reading**
+* **Text-to-Speech (TTS):** Listen to a selected passage or an entire chapter.
+* **RSVP Mode:** Words are displayed one at a time at the optimal fixation point (100–1000 words per minute).
+* **Auto-scroll:** Smooth text scrolling with adjustable speed.
 
-Nine reading fonts, including Literata, Lora, Spectral, Crimson Pro, and Merriweather
+### Privacy & Installation
+* **Offline Mode:** Installable as a PWA via *"Add to Home Screen"* in Chrome or Safari. No internet connection is required after the first visit.
+* **Backup:** Since data lives in browser storage, clearing browser data deletes the library — use the `JSON` export in Settings to back up notes and bookmarks.
 
-Adjustable text size, line height, column width, and text alignment
+### Architecture & License
+A single self-contained `index.html` file with no build step required. Powered by `epub.js`, `JSZip`, `Service Worker`, `IndexedDB`, and custom parsers for `FB2`, `MOBI` (PalmDoc), `TXT`, and `Markdown`. Licensed under **BSD-2-Clause**.
 
-Focus mode: only the paragraph you are currently reading stays highlighted
+---
 
-Table of contents, full-text search, and automatic position saving
+<details>
+<summary><b>Описание на русском языке</b></summary>
+<br>
 
-Reading tools
+### Суть проекта
+GRIMOIRE упакован в один автономный файл `index.html` и превращает любой браузер на смартфоне или компьютере в полноценную читалку. Все книги, закладки и настройки хранятся локально в базе данных браузера (`IndexedDB`), работают без доступа к сети и никуда не передаются.
 
-"Insight": highlight any term and the reader finds definition-like sentences elsewhere in the book
+### Ключевые возможности
 
-"Chapter gist": automatic summary of the key ideas of the current chapter
+**Библиотека**
+* **Поддержка форматов:** `EPUB`, `FB2`, `FB2.ZIP`, `MOBI`, `PRC`, `AZW`, `AZW3`, `TXT`, `MD`, а также `DOCX` и `HTML`.
+* **Импорт:** добавление отдельных файлов или целых папок с коллекциями.
+* **Каталогизация:** автоматическое извлечение метаданных и обложек (или генерация минималистичной карточки при их отсутствии), отображение прогресса чтения.
 
-Quotes and notes with your own comments
+**Чтение и типографика**
+* **Оформление:** три темы (*Abyss* — тёмная, *Parchment* — светлая, *Void* — монохромная) и настраиваемый ночной фильтр.
+* **Шрифты и вёрстка:** девять книжных гарнитур (включая *Literata*, *Lora*, *Spectral*, *Crimson Pro*, *Merriweather*), гибкая настройка кегля, интерлиньяжа, ширины колонки и выравнивания.
+* **Фокусировка:** режим подсветки только текущего абзаца, оглавление, полнотекстовый поиск и автосохранение позиции.
 
-A per-book glossary of collected terms
+**Инструменты анализа**
+* **Контекст («Вникнуть»):** выделение термина или имени находит в тексте книги предложения с их определениями.
+* **Выжимка главы:** автоматическое резюме ключевых мыслей текущего раздела.
+* **Заметки и глоссарий:** сохранение цитат с комментариями, формирование словаря терминов для каждой книги и экспорт данных в формат `JSON`.
 
-Export of notes, glossary, and bookmarks to JSON
+**Аудио и скорочтение**
+* **Синтез речи (TTS):** озвучивание выбранного фрагмента или всей главы.
+* **RSVP-режим:** последовательная подача слов с акцентом на точке фиксации взгляда (от 100 до 1000 слов в минуту).
+* **Автопрокрутка:** плавное движение текста с регулируемой скоростью.
 
-Read aloud and speed reading
+### Приватность и установка
+* **Работа офлайн:** приложение можно установить на главный экран смартфона через меню браузера (*«На экран „Домой“»* в Chrome или Safari) как полноценное PWA. После первого запуска интернет не требуется.
+* **Резервное копирование:** поскольку данные привязаны к хранилищу браузера, очистка кэша удалит библиотеку — для сохранения прогресса и заметок предусмотрен экспорт в `JSON`.
 
-Text-to-speech (TTS): listen to a chapter or a selected passage
+### Архитектура и лицензия
+Самодостаточный `index.html` без этапа сборки. В основе лежат `epub.js`, `JSZip`, `Service Worker`, `IndexedDB` и собственные парсеры для `FB2`, `MOBI` (PalmDoc), `TXT` и `Markdown`. Исходный код открыт под лицензией **BSD-2-Clause**.
 
-RSVP speed reading: words are shown one at a time at the optimal fixation point, 100–1000 words per minute
-
-Auto-scroll with adjustable speed
-
-Privacy and offline mode
-
-All books, progress, notes, and settings are stored only on your device (IndexedDB)
-
-Installable as a PWA: use "Add to Home Screen" on your phone
-
-Works offline after the first visit
-
-No sign-up, no analytics, no requests that send your data anywhere
-
-Getting started
-
-Open the reader in your browser using the link above
-
-Press "+" and select your books (or a whole folder)
-
-Tap a cover to start reading
-
-On Android (Chrome) or iOS (Safari), choose "Add to Home Screen" to install it as an app
-
-Note: clearing your browser data deletes the library. Use the JSON export in Settings to back up your notes and bookmarks.
-
-Technical details
-
-A single self-contained index.html file, no build step required
-
-epub.js for EPUB rendering
-
-JSZip for archive handling and as a fallback EPUB parser
-
-IndexedDB for storage; Service Worker and PWA for offline support
-
-Custom parsers for FB2, MOBI (PalmDoc), TXT, and Markdown
-
-License
-
-BSD-2-Clause (inherits the epub.js license)
+</details>
