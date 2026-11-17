@@ -5,7 +5,7 @@
 **Offline Book Reader for Your Browser**  
 A self-contained web reader with a local library. No accounts, no servers, no tracking — your books never leave your device.
 
-[Open GRIMOIRE](https://github.io)
+**[Open GRIMOIRE](https://princessbublgum03-alt.github.io/grimoire-reader/)**
 
 <br>
 
@@ -52,6 +52,8 @@ A single self-contained `index.html` file with no build step required. Powered b
 <details>
 <summary><b>Описание на русском языке</b></summary>
 <br>
+
+**[Открыть GRIMOIRE](https://princessbublgum03-alt.github.io/grimoire-reader/)**
 
 ### Суть проекта
 GRIMOIRE упакован в один автономный файл `index.html` и превращает любой браузер на смартфоне или компьютере в полноценную читалку. Все книги, закладки и настройки хранятся локально в базе данных браузера (`IndexedDB`), работают без доступа к сети и никуда не передаются.
