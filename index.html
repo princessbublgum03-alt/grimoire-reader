@@ -489,7 +489,7 @@
         Библиотека пуста
       </p>
       <p class="hint" style="max-width:300px;margin:0 auto">
-        Добавьте EPUB, FB2, FB2.ZIP, TXT, MD или MOBI.<br>Или импортируйте целую папку с книгами.<br>Всё останется на этом устройстве.
+        Добавьте EPUB, FB2, DOCX, HTML, TXT, MD, FB2.ZIP или MOBI.<br>Или импортируйте целую папку с книгами.<br>Всё останется на этом устройстве.
       </p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
@@ -515,6 +515,9 @@
     <button class="icon-btn" id="btn-search" title="Поиск" aria-label="Поиск">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
     </button>
+    <button class="icon-btn" id="btn-bookmark" title="Закладка" aria-label="Закладка">
+      <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
+    </button>
     <button class="icon-btn" id="btn-rsvp" title="Скорочтение" aria-label="Скорочтение">
       <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
     </button>
@@ -526,6 +529,9 @@
     </button>
     <button class="icon-btn" id="btn-reader-settings" title="Настройки чтения" aria-label="Настройки чтения">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-fullscreen" title="Во весь экран" aria-label="Во весь экран">
+      <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
     </button>
   </header>
 
@@ -582,7 +588,15 @@
     <div class="rsvp-speed">
       <span id="rsvp-speed-label">300 слов/мин</span>
     </div>
-    <input type="range" id="rsvp-speed" min="100" max="1000" step="10" value="300">
+    <div class="rsvp-speed" style="width:100%">
+      <button class="icon-btn" id="rsvp-minus" title="Медленнее" aria-label="Медленнее">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+      </button>
+      <input type="range" id="rsvp-speed" min="100" max="1000" step="10" value="300" style="flex:1">
+      <button class="icon-btn" id="rsvp-plus" title="Быстрее" aria-label="Быстрее">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
     <button class="rsvp-btn" id="btn-rsvp-play">
       <svg viewBox="0 0 24 24" id="rsvp-icon-play"><path d="M5 3l14 9-14 9V3z"/></svg>
       <svg viewBox="0 0 24 24" id="rsvp-icon-pause" style="display:none"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
@@ -591,7 +605,8 @@
 </div>
 
 <div id="toast"></div>
-<input type="file" id="file-input" accept=".epub,.fb2,.zip,.txt,.md,.markdown,.mobi,.prc,.azw,.azw3" multiple hidden>
+<input type="file" id="file-input" accept=".epub,.fb2,.zip,.txt,.md,.markdown,.mobi,.prc,.azw,.azw3,.docx,.html,.htm" multiple hidden>
+<input type="file" id="cover-input" accept="image/*" hidden>
 <input type="file" id="folder-input" webkitdirectory multiple hidden>
 
 <script>
@@ -625,7 +640,7 @@ function toast(msg, ms = 2400) {
   toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
 
-const SUPPORTED_EXTS = ['epub', 'fb2', 'zip', 'txt', 'md', 'markdown', 'mobi', 'prc', 'azw', 'azw3'];
+const SUPPORTED_EXTS = ['epub', 'fb2', 'zip', 'txt', 'md', 'markdown', 'mobi', 'prc', 'azw', 'azw3', 'docx', 'html', 'htm'];
 const MAX_FILE_SIZE = 200 * 1024 * 1024;
 
 /* ---------------------------------------------------------------
@@ -690,7 +705,8 @@ const DEFAULT_SETTINGS = {
   fontFamily: 'georgia', maxWidth: 68, justify: true,
   nightFilter: 0, focusMode: false,
   ttsRate: 1, ttsPitch: 1,
-  rsvpSpeed: 300, autoScrollSpeed: 5
+  rsvpSpeed: 300, autoScrollSpeed: 5,
+  epubFlow: 'paginated', autoNight: false
 };
 const THEMES = ['abyss', 'parchment', 'void'];
 const THEME_NAMES = { abyss: 'Бездна', parchment: 'Пергамент', void: 'Пустота' };
@@ -1293,7 +1309,7 @@ function showImportErrors(errors, ok, total) {
 let libraryCache = [];
 
 async function loadLibrary() {
-  try { libraryCache = (await DB.getAll('books')) || []; } catch (e) { libraryCache = []; }
+  try { libraryCache = ((await DB.getAll('books')) || []).filter(b => !b.deleted); } catch (e) { libraryCache = []; }
   libraryCache.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
 
   const grid = $('#grid'), empty = $('#empty');
@@ -1311,7 +1327,7 @@ async function loadLibrary() {
     card.innerHTML = `
       <div class="book-cover">
         <img src="${getCoverFor(b)}" loading="lazy" decoding="async" alt="">
-        <button class="book-del" title="Удалить"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.6"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        <button class="book-del" title="Меню книги"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.6"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div class="book-title">${escHTML(b.title || 'Без названия')}</div>
       <div class="book-author">${escHTML(b.author || b.format || '')}</div>
@@ -1322,14 +1338,133 @@ async function loadLibrary() {
   grid.appendChild(frag);
 }
 
-async function deleteBook(id) {
-  if (!(await confirmDialog('Удалить книгу?', 'Удалить'))) return;
+async function purgeBook(id) {
   await DB.del('books', id); await DB.del('files', id).catch(()=>{}); await DB.del('progress', id).catch(()=>{});
   (await DB.getAll('glossary') || []).filter(g => g.bookId === id).forEach(g => DB.del('glossary', g.id));
   (await DB.getAll('notes') || []).filter(n => n.bookId === id).forEach(n => DB.del('notes', n.id));
   (await DB.getAll('bookmarks') || []).filter(b => b.bookId === id).forEach(b => DB.del('bookmarks', b.id));
   delete fullTextCache[id]; coverCache.delete(id);
-  await loadLibrary(); toast('Книга удалена');
+}
+
+/* Меню книги: обложка, корзина, полное удаление */
+async function showBookMenu(id) {
+  const book = await DB.get('books', id);
+  if (!book) return;
+  const html = `
+    <div style="display:flex;gap:14px;margin-bottom:18px">
+      <img src="${escHTML(getCoverFor(book))}" alt="" style="width:64px;aspect-ratio:2/3;object-fit:cover;border:1px solid var(--line)">
+      <div style="min-width:0">
+        <div style="font-family:var(--serif);font-size:15px;margin-bottom:4px">${escHTML(book.title || 'Без названия')}</div>
+        <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)">${escHTML(book.author || book.format || '')}</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn-ghost" data-act="cover" style="justify-content:center">Сменить обложку</button>
+      ${book.customCover ? '<button class="btn-ghost" data-act="resetcover" style="justify-content:center">Сбросить обложку</button>' : ''}
+      <button class="btn-ghost" data-act="trash" style="justify-content:center">Удалить в корзину</button>
+      <button class="btn-ghost" data-act="purge" style="justify-content:center;border-color:rgba(200,90,70,.5);color:#c96a58">Удалить с устройства</button>
+    </div>`;
+  const ov = openSheet('Книга', html);
+  ov._body.addEventListener('click', async e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const act = b.dataset.act;
+    if (act === 'cover') {
+      pickCover(id);
+    } else if (act === 'resetcover') {
+      const rec = await DB.get('books', id);
+      if (rec) { rec.cover = generateCover(rec.title, rec.author); rec.customCover = false; await DB.put('books', rec); }
+      coverCache.delete(id);
+      closeSheet(); await loadLibrary(); toast('Обложка сброшена');
+    } else if (act === 'trash') {
+      const rec = await DB.get('books', id);
+      if (rec) { rec.deleted = true; rec.deletedAt = Date.now(); await DB.put('books', rec); }
+      delete fullTextCache[id];
+      closeSheet(); await loadLibrary(); toast('Книга перемещена в корзину');
+    } else if (act === 'purge') {
+      closeSheet();
+      if (await confirmDialog('Удалить книгу и все её данные без возможности восстановления?', 'Удалить')) {
+        await purgeBook(id); await loadLibrary(); toast('Книга удалена');
+      }
+    }
+  });
+}
+
+/* Корзина */
+async function showTrash() {
+  const all = (await DB.getAll('books')) || [];
+  const deleted = all.filter(b => b.deleted).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+  let html = deleted.length ? '' : '<p class="hint">Корзина пуста.</p>';
+  deleted.forEach(b => {
+    html += `<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+      <img src="${escHTML(getCoverFor(b))}" alt="" style="width:44px;aspect-ratio:2/3;object-fit:cover;border:1px solid var(--line)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHTML(b.title || 'Без названия')}</div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-top:2px">${escHTML(b.author || b.format || '')}</div>
+      </div>
+      <button class="icon-btn trash-restore" data-id="${escHTML(b.id)}" title="Восстановить" aria-label="Восстановить"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+      <button class="icon-btn trash-purge" data-id="${escHTML(b.id)}" title="Удалить навсегда" aria-label="Удалить навсегда" style="color:#c96a58"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>`;
+  });
+  if (deleted.length) html += '<div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn-ghost" id="btn-empty-trash" style="border-color:rgba(200,90,70,.5);color:#c96a58">Очистить корзину</button></div>';
+  const ov = openSheet('Корзина', html);
+  ov._body.addEventListener('click', async e => {
+    const rest = e.target.closest('.trash-restore');
+    const prg = e.target.closest('.trash-purge');
+    const emp = e.target.closest('#btn-empty-trash');
+    if (rest) {
+      const rec = await DB.get('books', rest.dataset.id);
+      if (rec) { delete rec.deleted; delete rec.deletedAt; await DB.put('books', rec); }
+      closeSheet(); await loadLibrary(); toast('Книга восстановлена');
+    } else if (prg) {
+      await purgeBook(prg.dataset.id); closeSheet(); await loadLibrary(); toast('Удалено навсегда');
+    } else if (emp) {
+      if (!(await confirmDialog('Удалить всё из корзины без возможности восстановления?', 'Очистить'))) return;
+      for (const b of deleted) await purgeBook(b.id);
+      closeSheet(); await loadLibrary(); toast('Корзина очищена');
+    }
+  });
+}
+
+/* Свои обложки */
+let coverTargetId = null;
+function pickCover(id) {
+  coverTargetId = id;
+  const inp = $('#cover-input');
+  inp.value = ''; inp.click();
+}
+
+function readImageAsCover(file) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const H = 600, W = Math.max(200, Math.min(1200, Math.round(H * (img.width / img.height))));
+          const c = document.createElement('canvas'); c.width = W; c.height = H;
+          c.getContext('2d').drawImage(img, 0, 0, W, H);
+          res(c.toDataURL('image/jpeg', 0.85));
+        } catch (e) { rej(e); }
+      };
+      img.onerror = rej;
+      img.src = fr.result;
+    };
+    fr.onerror = rej;
+    fr.readAsDataURL(file);
+  });
+}
+
+async function onCoverPicked(e) {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!f || !coverTargetId) return;
+  try {
+    const dataUrl = await readImageAsCover(f);
+    const rec = await DB.get('books', coverTargetId);
+    if (rec) { rec.cover = dataUrl; rec.customCover = true; await DB.put('books', rec); }
+    coverCache.delete(coverTargetId);
+    closeSheet(); await loadLibrary(); toast('Обложка обновлена');
+  } catch (err) { toast('Не удалось загрузить изображение'); }
 }
 
 /* ---------------------------------------------------------------
@@ -1385,7 +1520,7 @@ async function openEpub(book, prog) {
 
   try {
     const eb = ePub(buf.slice(0)); state.epub = eb; await eb.ready;
-    const rendition = eb.renderTo(host, { width: '100%', height: '100%', flow: 'paginated', spread: 'none' });
+    const rendition = eb.renderTo(host, { width: '100%', height: '100%', flow: settings.epubFlow === 'scrolled' ? 'scrolled-doc' : 'paginated', spread: 'none' });
     state.rendition = rendition;
 
     rendition.hooks.content.register(contents => {
@@ -1396,19 +1531,34 @@ async function openEpub(book, prog) {
           if (typeof contents.addStylesheet === 'function') contents.addStylesheet(url);
         }
       } catch (e) {}
-      // Свайпы внутри iframe с книгой: влево/вправо — листать страницы
+      // Свайпы и тап-зоны внутри iframe с книгой
       try {
         const doc = contents.document;
-        let sx = 0, sy = 0;
+        let sx = 0, sy = 0, moved = false;
         doc.addEventListener('touchstart', e => {
-          if (e.touches && e.touches.length === 1) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }
+          if (e.touches && e.touches.length === 1) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; moved = false; }
+        }, { passive: true });
+        doc.addEventListener('touchmove', e => {
+          if (e.touches && e.touches.length === 1 && (Math.abs(e.touches[0].clientX - sx) > 20 || Math.abs(e.touches[0].clientY - sy) > 20)) moved = true;
         }, { passive: true });
         doc.addEventListener('touchend', e => {
           const t = e.changedTouches && e.changedTouches[0]; if (!t) return;
           try { if (contents.window.getSelection().toString().trim()) return; } catch (err) {}
           const dx = t.clientX - sx, dy = t.clientY - sy;
-          if (Math.abs(dx) > 60 && Math.abs(dy) < 50) { if (dx > 0) rendition.prev(); else rendition.next(); }
+          if (Math.abs(dx) > 60 && Math.abs(dy) < 50) { moved = true; if (dx > 0) rendition.prev(); else rendition.next(); }
         }, { passive: true });
+        // Тап-зоны: левый край — назад, правый — вперёд, центр — показать/скрыть панели
+        doc.addEventListener('click', e => {
+          if (moved) { moved = false; return; }
+          try { if (contents.window.getSelection().toString().trim()) return; } catch (err) {}
+          const w = contents.window.innerWidth || doc.documentElement.clientWidth || 0;
+          const x = e.clientX || 0;
+          if (settings.epubFlow !== 'scrolled') {
+            if (x < w * 0.3) return rendition.prev();
+            if (x > w * 0.7) return rendition.next();
+          }
+          setBars(!state.barsVisible);
+        });
       } catch (e) {}
     });
 
@@ -1579,6 +1729,28 @@ async function closeReader() {
   showReader(false); hideTermPill(); closeSheet(); await loadLibrary();
 }
 
+/* Закладки */
+async function addBookmark() {
+  if (!state.current) return;
+  const bm = { bookId: state.current.id, timestamp: Date.now(), percent: 0 };
+  if (state.current.format === 'epub' && state.rendition) {
+    try {
+      const loc = state.rendition.currentLocation();
+      bm.cfi = loc && loc.start ? loc.start.cfi : null;
+      bm.percent = loc && loc.start && isFinite(loc.start.percentage) ? loc.start.percentage : 0;
+    } catch (e) {}
+    bm.label = $('#rt-chapter').textContent || 'EPUB';
+  } else {
+    bm.chapter = state.chapterIndex;
+    bm.ratio = customRatio();
+    const ch = state.chapters && state.chapters[state.chapterIndex];
+    bm.label = (ch && ch.title) || '';
+    bm.percent = (state.chapterIndex + bm.ratio) / ((state.chapters || [1]).length || 1);
+  }
+  try { await DB.put('bookmarks', bm); toast('Закладка добавлена'); }
+  catch (e) { toast('Не удалось сохранить закладку'); }
+}
+
 /* ---------------------------------------------------------------
    9. Текст, Поиск, Заметки
 --------------------------------------------------------------- */
@@ -1620,13 +1792,45 @@ async function searchBook(query) {
   const q = query.toLowerCase();
   
   if (book.format === 'epub') {
-    const text = await getFullText(book);
+    const buf = await DB.get('files', book.id).catch(() => null);
+    if (!buf || typeof ePub === 'undefined') return [];
+    const eb = ePub(buf.slice(0));
     const results = [];
-    const sentences = text.match(/[^.!?…]+[.!?…]+[»"”)]?/g) || [text];
-    sentences.forEach(s => {
-      if (s.toLowerCase().includes(q)) results.push({ chapter: 'EPUB', text: s.trim() });
-    });
-    return results.slice(0, 50);
+    try {
+      await eb.ready;
+      const items = eb.spine.spineItems || [];
+      for (let i = 0; i < items.length && results.length < 50; i++) {
+        try {
+          await items[i].load(eb.load.bind(eb));
+          const doc = items[i].document;
+          const text = doc && doc.body ? (doc.body.textContent || '') : '';
+          if (text && text.toLowerCase().includes(q)) {
+            let cfi = null;
+            try {
+              const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null);
+              let node;
+              while ((node = walker.nextNode())) {
+                const idx = (node.nodeValue || '').toLowerCase().indexOf(q);
+                if (idx >= 0) {
+                  const range = doc.createRange();
+                  range.setStart(node, idx);
+                  range.setEnd(node, Math.min(node.nodeValue.length, idx + q.length));
+                  if (ePub.CFI) cfi = new ePub.CFI(range, items[i].cfiBase).toString();
+                  break;
+                }
+              }
+            } catch (e) {}
+            const sentences = text.match(/[^.!?…]+[.!?…]+[»"”)]?/g) || [text];
+            for (const s of sentences) {
+              if (results.length >= 50) break;
+              if (s.toLowerCase().includes(q)) results.push({ chapter: 'EPUB', text: s.trim(), cfi, href: items[i].href });
+            }
+          }
+          items[i].unload();
+        } catch (e) {}
+      }
+    } finally { try { eb.destroy(); } catch (e) {} }
+    return results;
   }
 
   const results = [];
@@ -1663,32 +1867,20 @@ async function showSearchSheet() {
     if (!results.length) { resDiv.innerHTML = '<p class="hint">Ничего не найдено.</p>'; return; }
     
     resDiv.innerHTML = results.map(r => `
-      <button class="toc-item" data-text="${escHTML(r.text)}" data-index="${r.index || ''}">
+      <button class="toc-item" data-text="${escHTML(r.text)}" data-index="${r.index || ''}" data-cfi="${escHTML(r.cfi || '')}" data-href="${escHTML(r.href || '')}">
         <span style="display:block;font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px">${escHTML(r.chapter)}</span>
         <span>${highlightText(escHTML(r.text), q)}</span>
       </button>
     `).join('');
-    
+
     resDiv.querySelectorAll('.toc-item').forEach(btn => {
       btn.addEventListener('click', () => {
         closeSheet();
         if (state.rendition) {
-           // epub search doesn't map to exact chapter index easily via custom method, we'd need CFI
-           // For simplicity in EPUB, just alert or try to find via epub.js find API
-           state.rendition.find(q); 
-        } else {
-           const idx = parseInt(btn.dataset.index, 10);
-           renderChapter(idx, 0);
-           // Try to find and scroll to text
-           setTimeout(() => {
-              const inner = $('#reader-inner');
-              // Remove old highlights
-              inner.innerHTML = inner.innerHTML.replace(/<mark class="search-hit">(.*?)<\/mark>/g, '$1');
-              // Add new (simple replace, might fail on nested tags, but works for most)
-              const regex = new RegExp('(' + escRe(q) + ')', 'gi');
-              // We can't easily scroll to specific text without wrapping it. 
-              // Since we just re-rendered, we can use window.find if available, or just let user scroll.
-           }, 100);
+          const target = btn.dataset.cfi || btn.dataset.href;
+          if (target) state.rendition.display(target).catch(() => toast('Не удалось перейти к фрагменту'));
+        } else if (btn.dataset.index) {
+          renderChapter(parseInt(btn.dataset.index, 10), 0);
         }
       });
     });
@@ -2073,6 +2265,7 @@ async function showToc() {
   const ov = openSheet('Содержание', `
     <div class="tabs">
       <button data-tab="toc" class="on">Главы</button>
+      <button data-tab="bookmarks">Закладки</button>
       <button data-tab="notes">Заметки</button>
       <button data-tab="glossary">Глоссарий</button>
     </div>
@@ -2088,6 +2281,22 @@ async function showToc() {
       html = (state.chapters || []).map((c, i) => `<button class="toc-item ${i === state.chapterIndex ? 'active' : ''}" data-index="${i}">${escHTML(c.title || ('Часть '+(i+1)))}</button>`).join('');
     }
     content.innerHTML = html;
+  };
+
+  let bmList = [];
+  const renderBookmarks = async () => {
+    content.innerHTML = '<div class="spinner" style="margin:20px auto;display:block"></div>';
+    bmList = (await DB.getAll('bookmarks') || []).filter(b => b.bookId === book.id).sort((a, b) => b.timestamp - a.timestamp);
+    if (!bmList.length) return content.innerHTML = '<p class="hint">Закладок пока нет. Нажмите иконку закладки в читалке.</p>';
+    content.innerHTML = bmList.map(b => `
+      <div style="display:flex;align-items:center;border-bottom:1px solid var(--line)">
+        <button class="toc-item" style="flex:1;border-bottom:0" data-bm="${b.id}">
+          <span style="display:block;font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px">${escHTML(b.label || 'Закладка')} · ${new Date(b.timestamp).toLocaleDateString()}</span>
+          <span>${Math.round((b.percent || 0) * 100)}%</span>
+        </button>
+        <button class="icon-btn bm-del" data-id="${b.id}" title="Удалить закладку" aria-label="Удалить закладку"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+    `).join('');
   };
 
   const renderNotes = async () => {
@@ -2120,13 +2329,24 @@ async function showToc() {
     const btn = e.target.closest('[data-tab]'); if (!btn) return;
     ov._body.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b === btn));
     if (btn.dataset.tab === 'toc') renderToc();
+    else if (btn.dataset.tab === 'bookmarks') renderBookmarks();
     else if (btn.dataset.tab === 'notes') renderNotes();
     else renderGlossary();
   });
 
   content.addEventListener('click', async e => {
+    const bmDel = e.target.closest('.bm-del');
+    if (bmDel) { await DB.del('bookmarks', parseInt(bmDel.dataset.id, 10)); renderBookmarks(); return; }
     const item = e.target.closest('.toc-item'); if (!item) return;
     if (item.dataset.href) { closeSheet(); try { await state.rendition.display(item.dataset.href); } catch(err){} }
+    else if (item.dataset.bm) {
+      const bm = bmList.find(x => x.id === parseInt(item.dataset.bm, 10));
+      closeSheet();
+      if (bm) {
+        if (bm.cfi && state.rendition) { try { await state.rendition.display(bm.cfi); } catch (err) {} }
+        else if (bm.chapter !== undefined) renderChapter(bm.chapter, bm.ratio || 0);
+      }
+    }
     else if (item.dataset.index !== undefined) { closeSheet(); renderChapter(parseInt(item.dataset.index, 10), 0); }
     else if (item.dataset.term) { closeSheet(); setTimeout(() => openTerm(item.dataset.term), 220); }
   });
@@ -2148,9 +2368,18 @@ function settingsBody() {
     <div class="field"><label>Атмосфера</label>
       <div class="seg" style="margin-bottom:8px">
         <button data-toggle="night" class="${settings.nightFilter > 0 ? 'on' : ''}">Ночной фильтр</button>
+        <button data-toggle="autonight" class="${settings.autoNight ? 'on' : ''}">Авто ночью</button>
         <button data-toggle="focus" class="${settings.focusMode ? 'on' : ''}">Режим фокуса</button>
       </div>
       <input type="range" id="set-night" min="0" max="60" step="5" value="${settings.nightFilter}">
+    </div>
+
+    <div class="field"><label>Листание EPUB</label>
+      <div class="seg" id="set-epubflow">
+        <button data-flow="paginated" class="${settings.epubFlow !== 'scrolled' ? 'on' : ''}">Постранично</button>
+        <button data-flow="scrolled" class="${settings.epubFlow === 'scrolled' ? 'on' : ''}">Свиток</button>
+      </div>
+      <p class="hint" style="margin-top:8px">«Постранично» — свайп влево-вправо листает страницы. «Свиток» — книга прокручивается пальцем вверх-вниз, как веб-страница. Режим применяется при следующем открытии книги.</p>
     </div>
 
     <div class="field"><label>Скорочтение (RSVP)</label>
@@ -2172,6 +2401,8 @@ function settingsBody() {
     <div class="field"><label>Данные</label>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-ghost" id="btn-export">Экспорт JSON</button>
+        <button class="btn-ghost" id="btn-import-json">Импорт JSON</button>
+        <button class="btn-ghost" id="btn-trash">Корзина</button>
         <button class="btn-ghost" id="btn-wipe" style="border-color:rgba(200,90,70,.5);color:#c96a58">Очистить всё</button>
       </div>
       <p class="hint" style="margin-top:10px" id="stats-lbl">Загрузка статистики…</p>
@@ -2190,6 +2421,16 @@ function bindSettingsBody(root) {
     const b = e.target.closest('[data-font]'); if (!b) return;
     settings.fontFamily = b.dataset.font; applySettings(); saveSettings(); applyEpubTheme();
     root.querySelectorAll('#set-font button').forEach(x => x.classList.toggle('on', x === b));
+  });
+
+  // Режим листания EPUB
+  const flowSeg = root.querySelector('#set-epubflow');
+  if (flowSeg) flowSeg.addEventListener('click', e => {
+    const b = e.target.closest('[data-flow]'); if (!b) return;
+    settings.epubFlow = b.dataset.flow;
+    saveSettings();
+    flowSeg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    toast('Режим применяется при открытии книги');
   });
   
   // Sliders
@@ -2221,8 +2462,14 @@ function bindSettingsBody(root) {
       } else if (type === 'focus') {
         settings.focusMode = !settings.focusMode;
         updateFocus();
+      } else if (type === 'autonight') {
+        settings.autoNight = !settings.autoNight;
+        if (settings.autoNight) updateAutoNight();
       }
-      btn.classList.toggle('on', type === 'night' ? settings.nightFilter > 0 : settings.focusMode);
+      btn.classList.toggle('on',
+        type === 'night' ? settings.nightFilter > 0 :
+        type === 'autonight' ? settings.autoNight :
+        settings.focusMode);
       applySettings(); saveSettings();
     });
   });
@@ -2318,7 +2565,7 @@ function bindEvents() {
 
   $('#grid').addEventListener('click', async e => {
     const del = e.target.closest('.book-del');
-    if (del) { e.stopPropagation(); await deleteBook(del.closest('.book-card').dataset.id); return; }
+    if (del) { e.stopPropagation(); await showBookMenu(del.closest('.book-card').dataset.id); return; }
     const card = e.target.closest('.book-card');
     if (card) await openBook(card.dataset.id);
   });
@@ -2398,9 +2645,24 @@ function bindEvents() {
     else playRSVP();
   });
   $('#rsvp-speed').addEventListener('input', e => {
-    settings.rsvpSpeed = parseInt(e.target.value, 10);
+    settings.rsvpSpeed = Math.max(100, Math.min(1000, parseInt(e.target.value, 10) || 300));
     $('#rsvp-speed-label').textContent = settings.rsvpSpeed + ' слов/мин';
-    if (rsvpInterval) playRSVP(); // restart with new speed
+    saveSettings();
+  });
+  // Пересчитываем темп, когда ползунок отпущен — так перетаскивание остаётся плавным
+  $('#rsvp-speed').addEventListener('change', () => { if (rsvpInterval) playRSVP(); });
+  $('#rsvp-minus').addEventListener('click', () => {
+    settings.rsvpSpeed = Math.max(100, settings.rsvpSpeed - 50);
+    $('#rsvp-speed').value = settings.rsvpSpeed;
+    $('#rsvp-speed-label').textContent = settings.rsvpSpeed + ' слов/мин';
+    if (rsvpInterval) playRSVP();
+    saveSettings();
+  });
+  $('#rsvp-plus').addEventListener('click', () => {
+    settings.rsvpSpeed = Math.min(1000, settings.rsvpSpeed + 50);
+    $('#rsvp-speed').value = settings.rsvpSpeed;
+    $('#rsvp-speed-label').textContent = settings.rsvpSpeed + ' слов/мин';
+    if (rsvpInterval) playRSVP();
     saveSettings();
   });
 
