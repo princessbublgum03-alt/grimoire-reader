@@ -331,15 +331,17 @@
   .font-btn:hover{border-color:var(--line-accent)}
 
   input[type=range]{
-    -webkit-appearance:none; appearance:none; width:100%; height:1px; background:var(--line);
-    outline:none; margin:14px 0 6px;
+    -webkit-appearance:none; appearance:none; width:100%; height:28px; background:transparent;
+    outline:none; margin:8px 0 6px; cursor:pointer;
   }
+  input[type=range]::-webkit-slider-runnable-track{ height:2px; background:var(--line); border-radius:2px; }
   input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    -webkit-appearance:none; width:18px; height:18px; border-radius:50%; margin-top:-8px;
     background:var(--accent); cursor:pointer; border:2px solid var(--bg); box-shadow:0 0 0 1px var(--line-accent);
   }
+  input[type=range]::-moz-range-track{ height:2px; background:var(--line); border-radius:2px; }
   input[type=range]::-moz-range-thumb{
-    width:12px; height:12px; border-radius:50%; background:var(--accent);
+    width:14px; height:14px; border-radius:50%; background:var(--accent);
     cursor:pointer; border:2px solid var(--bg);
   }
   .toc-item{
@@ -430,10 +432,11 @@
     display:flex; align-items:center; gap:12px; padding:0 16px; margin-bottom:4px;
   }
   #quick-nav {
-    flex:1; -webkit-appearance:none; height:2px; background:var(--line); outline:none; margin:0;
+    flex:1; -webkit-appearance:none; height:26px; background:transparent; outline:none; margin:0;
   }
+  #quick-nav::-webkit-slider-runnable-track{ height:2px; background:var(--line); border-radius:2px; }
   #quick-nav::-webkit-slider-thumb {
-    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%; margin-top:-6px;
     background:var(--accent); cursor:pointer; border:2px solid var(--bg);
   }
 </style>
@@ -579,7 +582,7 @@
     <div class="rsvp-speed">
       <span id="rsvp-speed-label">300 слов/мин</span>
     </div>
-    <input type="range" id="rsvp-speed" min="100" max="1000" step="50" value="300">
+    <input type="range" id="rsvp-speed" min="100" max="1000" step="10" value="300">
     <button class="rsvp-btn" id="btn-rsvp-play">
       <svg viewBox="0 0 24 24" id="rsvp-icon-play"><path d="M5 3l14 9-14 9V3z"/></svg>
       <svg viewBox="0 0 24 24" id="rsvp-icon-pause" style="display:none"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
@@ -1393,6 +1396,20 @@ async function openEpub(book, prog) {
           if (typeof contents.addStylesheet === 'function') contents.addStylesheet(url);
         }
       } catch (e) {}
+      // Свайпы внутри iframe с книгой: влево/вправо — листать страницы
+      try {
+        const doc = contents.document;
+        let sx = 0, sy = 0;
+        doc.addEventListener('touchstart', e => {
+          if (e.touches && e.touches.length === 1) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }
+        }, { passive: true });
+        doc.addEventListener('touchend', e => {
+          const t = e.changedTouches && e.changedTouches[0]; if (!t) return;
+          try { if (contents.window.getSelection().toString().trim()) return; } catch (err) {}
+          const dx = t.clientX - sx, dy = t.clientY - sy;
+          if (Math.abs(dx) > 60 && Math.abs(dy) < 50) { if (dx > 0) rendition.prev(); else rendition.next(); }
+        }, { passive: true });
+      } catch (e) {}
     });
 
     applyEpubTheme();
@@ -1918,23 +1935,38 @@ function speakText(text) {
     $('#btn-tts').classList.remove('active');
     return;
   }
-  
-  const cleanText = text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  if (!cleanText) return;
-  
-  const utt = new SpeechSynthesisUtterance(cleanText);
-  utt.lang = 'ru-RU';
-  utt.rate = settings.ttsRate;
-  utt.pitch = settings.ttsPitch;
-  
-  utt.onend = () => {
-    state.isSpeaking = false;
-    $('#btn-tts').classList.remove('active');
-  };
-  
+
+  const cleanText = String(text).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  if (!cleanText) return toast('Нет текста для озвучки');
+
+  // Дробим на короткие куски: длинные фразы мобильные браузеры молча пропускают
+  const sentences = cleanText.match(/[^.!?…]+[.!?…]+[»"”)]?\s*/g) || [cleanText];
+  const parts = [];
+  let cur = '';
+  for (const s of sentences) {
+    if (cur && (cur + s).length > 220) { parts.push(cur.trim()); cur = s; }
+    else cur += s;
+  }
+  if (cur.trim()) parts.push(cur.trim());
+
   state.isSpeaking = true;
   $('#btn-tts').classList.add('active');
-  window.speechSynthesis.speak(utt);
+  let i = 0;
+  const speakNext = () => {
+    if (!state.isSpeaking || i >= parts.length) {
+      state.isSpeaking = false;
+      $('#btn-tts').classList.remove('active');
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(parts[i++]);
+    u.lang = 'ru-RU';
+    u.rate = settings.ttsRate;
+    u.pitch = settings.ttsPitch;
+    u.onend = speakNext;
+    u.onerror = () => { state.isSpeaking = false; $('#btn-tts').classList.remove('active'); };
+    window.speechSynthesis.speak(u);
+  };
+  speakNext();
 }
 
 function stopAllActions() {
@@ -2123,7 +2155,7 @@ function settingsBody() {
 
     <div class="field"><label>Скорочтение (RSVP)</label>
       <label style="text-transform:none;letter-spacing:0;font-size:12px">Скорость: <span id="lbl-rsvp">${settings.rsvpSpeed}</span> слов/мин</label>
-      <input type="range" id="set-rsvp" min="100" max="1000" step="50" value="${settings.rsvpSpeed}">
+      <input type="range" id="set-rsvp" min="100" max="1000" step="10" value="${settings.rsvpSpeed}">
     </div>
 
     <div class="field"><label>Автоскролл</label>
