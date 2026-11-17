@@ -9,7 +9,7 @@ A self-contained web reader with a local library. No accounts, no servers, no tr
 
 <br>
 
-<img src="screenshot.png" alt="GRIMOIRE Interface" width="320">
+<img src="screenshot.png" alt="" width="320">
 
 </div>
 
