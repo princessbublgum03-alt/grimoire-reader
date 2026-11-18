@@ -1,75 +1,125 @@
 export const DB = (() => {
   let dbPromise = null;
+  const OPEN_TIMEOUT_MS = 2000;
 
-  const open = () => dbPromise || (dbPromise = new Promise((res, rej) => {
+  const open = (timeoutMs = OPEN_TIMEOUT_MS) => dbPromise || (dbPromise = new Promise((res, rej) => {
+    if (typeof indexedDB === 'undefined') {
+      dbPromise = null;
+      return rej(new Error('IndexedDB unavailable'));
+    }
+
+    let settled = false;
     let req;
+    const finishErr = (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      dbPromise = null;
+      rej(err instanceof Error ? err : new Error(String(err || 'IndexedDB open failed')));
+    };
+
+    const timer = setTimeout(() => {
+      finishErr(new Error('IndexedDB open timeout'));
+    }, timeoutMs);
+
     try {
       req = indexedDB.open('grimoire', 3);
     } catch (e) {
-      return rej(e);
+      return finishErr(e);
     }
+
     req.onupgradeneeded = () => {
-      const db = req.result;
-      const autoIncStores = new Set(['glossary', 'notes', 'bookmarks']);
-      ['books', 'progress', 'glossary', 'notes', 'bookmarks', 'kv'].forEach((n) => {
-        if (!db.objectStoreNames.contains(n)) {
-          db.createObjectStore(n, {
-            keyPath: n === 'kv' ? undefined : 'id',
-            autoIncrement: autoIncStores.has(n)
-          });
-        }
-      });
-      if (!db.objectStoreNames.contains('files')) db.createObjectStore('files');
-      if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets');
-      if (!db.objectStoreNames.contains('chapters')) db.createObjectStore('chapters');
+      try {
+        const db = req.result;
+        const autoIncStores = new Set(['glossary', 'notes', 'bookmarks']);
+        ['books', 'progress', 'glossary', 'notes', 'bookmarks', 'kv'].forEach((n) => {
+          if (!db.objectStoreNames.contains(n)) {
+            db.createObjectStore(n, {
+              keyPath: n === 'kv' ? undefined : 'id',
+              autoIncrement: autoIncStores.has(n)
+            });
+          }
+        });
+        if (!db.objectStoreNames.contains('files')) db.createObjectStore('files');
+        if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets');
+        if (!db.objectStoreNames.contains('chapters')) db.createObjectStore('chapters');
+      } catch (e) {
+        finishErr(e);
+      }
     };
-    req.onsuccess = () => res(req.result);
+
+    req.onblocked = () => {
+      finishErr(new Error('IndexedDB open blocked'));
+    };
+
+    req.onsuccess = () => {
+      if (settled) {
+        try { req.result.close(); } catch { /* ignore */ }
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      const db = req.result;
+      db.onversionchange = () => {
+        try { db.close(); } catch { /* ignore */ }
+        dbPromise = null;
+      };
+      res(db);
+    };
+
     req.onerror = () => {
-      dbPromise = null;
-      rej(req.error || new Error('IndexedDB open failed'));
+      finishErr(req.error || new Error('IndexedDB open failed'));
     };
   }));
 
   const run = (storeName, mode, fn) => open().then((db) => new Promise((res, rej) => {
-    const tx = db.transaction(storeName, mode);
-    const os = tx.objectStore(storeName);
-    let r;
     try {
-      r = fn(os);
+      const tx = db.transaction(storeName, mode);
+      const os = tx.objectStore(storeName);
+      const r = fn(os);
+      tx.oncomplete = () => res(r ? r.result : undefined);
+      tx.onerror = () => rej(tx.error);
+      tx.onabort = () => rej(tx.error);
     } catch (e) {
-      return rej(e);
+      rej(e);
     }
-    tx.oncomplete = () => res(r ? r.result : undefined);
-    tx.onerror = () => rej(tx.error);
-    tx.onabort = () => rej(tx.error);
   }));
 
   const putBatch = (storeName, entries) => open().then((db) => new Promise((res, rej) => {
     if (!entries.length) return res();
-    const tx = db.transaction(storeName, 'readwrite');
-    const os = tx.objectStore(storeName);
-    for (const [val, key] of entries) {
-      if (key === undefined) os.put(val);
-      else os.put(val, key);
+    try {
+      const tx = db.transaction(storeName, 'readwrite');
+      const os = tx.objectStore(storeName);
+      for (const [val, key] of entries) {
+        if (key === undefined) os.put(val);
+        else os.put(val, key);
+      }
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+      tx.onabort = () => rej(tx.error);
+    } catch (e) {
+      rej(e);
     }
-    tx.oncomplete = () => res();
-    tx.onerror = () => rej(tx.error);
-    tx.onabort = () => rej(tx.error);
   }));
 
   const deleteByKeys = (storeName, keys) => open().then((db) => new Promise((res, rej) => {
     if (!keys.length) return res();
-    const tx = db.transaction(storeName, 'readwrite');
-    const os = tx.objectStore(storeName);
-    for (const k of keys) os.delete(k);
-    tx.oncomplete = () => res();
-    tx.onerror = () => rej(tx.error);
-    tx.onabort = () => rej(tx.error);
+    try {
+      const tx = db.transaction(storeName, 'readwrite');
+      const os = tx.objectStore(storeName);
+      for (const k of keys) os.delete(k);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+      tx.onabort = () => rej(tx.error);
+    } catch (e) {
+      rej(e);
+    }
   }));
 
   const getAllKeys = (storeName) => run(storeName, 'readonly', (o) => o.getAllKeys());
 
   return {
+    open,
     get: (s, k) => run(s, 'readonly', (o) => o.get(k)),
     getAll: (s) => run(s, 'readonly', (o) => o.getAll()),
     getAllKeys,

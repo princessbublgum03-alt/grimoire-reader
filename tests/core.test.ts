@@ -157,3 +157,72 @@ test('analysis helpers summarize, find term context, and search chapters', async
   assert.equal(highlightQueryHTML('Слово ГРИМУАР тут', 'гримуар'), 'Слово <mark class="search-hit">ГРИМУАР</mark> тут');
   assert.equal(countWords('Один два три'), 3);
 });
+
+test('public/ static assets use relative paths for GitHub Pages subfolder deployment', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const pubDir = path.resolve(process.cwd(), 'public');
+
+  const html = fs.readFileSync(path.join(pubDir, 'index.html'), 'utf8');
+  assert.ok(html.includes('</html>'), 'index.html must have closing </html>');
+  for (const requiredId of [
+    'id="boot"',
+    'id="rsvp-overlay"',
+    'id="rsvp-left"',
+    'id="rsvp-orp"',
+    'id="rsvp-right"',
+    'id="btn-rsvp-play"',
+    'id="rsvp-speed"',
+    'id="toast"',
+    'id="file-input"',
+    'id="folder-input"',
+    'id="cover-input"',
+    'id="backup-input"'
+  ]) {
+    assert.ok(html.includes(requiredId), `index.html missing ${requiredId}`);
+  }
+  assert.equal(/(?:href|src)=["']\/(css|js|vendor|icons|manifest|sw)/.test(html), false);
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(pubDir, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.id, './');
+  assert.equal(manifest.start_url, './');
+  assert.equal(manifest.scope, './');
+  for (const icon of manifest.icons) {
+    assert.ok(icon.src.startsWith('./icons/'), `Manifest icon must be relative: ${icon.src}`);
+  }
+
+  const parsersSrc = fs.readFileSync(path.join(pubDir, 'js', 'parsers.js'), 'utf8');
+  assert.equal(parsersSrc.includes("'/vendor/"), false);
+  assert.ok(parsersSrc.includes("'./vendor/pdf.min.js'"));
+  assert.ok(parsersSrc.includes("'./vendor/pdf.worker.min.js'"));
+
+  const swSrc = fs.readFileSync(path.join(pubDir, 'sw.js'), 'utf8');
+  assert.ok(swSrc.includes('grimoire-shell-v5'));
+  assert.equal(/['"]\/(css|js|vendor|icons|index\.html|manifest\.json)['"]/.test(swSrc), false);
+});
+
+test('DB.open rejects cleanly on timeout and onblocked without hanging', async () => {
+  const { DB } = await import('../public/js/db.js');
+  const origIDB = globalThis.indexedDB;
+  try {
+    // 1. Stalled open -> times out cleanly
+    globalThis.indexedDB = {
+      open: () => ({})
+    } as unknown as IDBFactory;
+    await assert.rejects(() => DB.open(40), /timeout/i);
+
+    // 2. Blocked open -> rejects cleanly
+    globalThis.indexedDB = {
+      open: () => {
+        const req: Record<string, unknown> = {};
+        setTimeout(() => {
+          if (typeof req.onblocked === 'function') (req.onblocked as () => void)();
+        }, 5);
+        return req;
+      }
+    } as unknown as IDBFactory;
+    await assert.rejects(() => DB.open(500), /blocked/i);
+  } finally {
+    globalThis.indexedDB = origIDB;
+  }
+});

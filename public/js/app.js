@@ -405,17 +405,21 @@ let libSearchQuery = '';
 let libSortBy = 'recent';
 
 async function loadLibrary() {
-  try {
-    libraryCache = ((await DB.getAll('books')) || []).filter((b) => !b.deleted);
-  } catch {
-    libraryCache = [];
-  }
+  libraryCache = [];
   progressMap = {};
   try {
-    ((await DB.getAll('progress')) || []).forEach((p) => {
-      progressMap[p.id] = p;
+    const [books, progress] = await Promise.all([
+      DB.getAll('books'),
+      DB.getAll('progress').catch(() => [])
+    ]);
+    libraryCache = (books || []).filter((b) => !b.deleted);
+    (progress || []).forEach((p) => {
+      if (p && p.id) progressMap[p.id] = p;
     });
-  } catch { /* ignore */ }
+  } catch {
+    libraryCache = [];
+    progressMap = {};
+  }
   renderLibrary();
 }
 
@@ -1999,22 +2003,28 @@ async function showTOC(initialTab = 'toc') {
 }
 
 /* ---------- События ---------- */
-function bindEvents() {
-  $('#btn-import').addEventListener('click', () => $('#file-input').click());
-  $('#btn-import-2').addEventListener('click', () => $('#file-input').click());
-  $('#btn-import-folder').addEventListener('click', () => $('#folder-input').click());
-  $('#btn-import-folder-2').addEventListener('click', () => $('#folder-input').click());
-  $('#file-input').addEventListener('change', (e) => {
-    handleFiles(e.target.files);
-    e.target.value = '';
-  });
-  $('#folder-input').addEventListener('change', (e) => {
-    handleFiles(e.target.files);
-    e.target.value = '';
-  });
-  $('#cover-input').addEventListener('change', onCoverPicked);
+function on(sel, ev, fn, opts) {
+  const el = $(sel);
+  if (el) el.addEventListener(ev, fn, opts);
+  return el;
+}
 
-  $('#backup-input').addEventListener('change', async (e) => {
+function bindEvents() {
+  on('#btn-import', 'click', () => $('#file-input')?.click());
+  on('#btn-import-2', 'click', () => $('#file-input')?.click());
+  on('#btn-import-folder', 'click', () => $('#folder-input')?.click());
+  on('#btn-import-folder-2', 'click', () => $('#folder-input')?.click());
+  on('#file-input', 'change', (e) => {
+    handleFiles(e.target.files);
+    e.target.value = '';
+  });
+  on('#folder-input', 'change', (e) => {
+    handleFiles(e.target.files);
+    e.target.value = '';
+  });
+  on('#cover-input', 'change', onCoverPicked);
+
+  on('#backup-input', 'change', async (e) => {
     const f = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!f) return;
@@ -2039,32 +2049,32 @@ function bindEvents() {
     if (e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
       e.preventDefault();
       dragDepth++;
-      $('#drop-zone').classList.add('active');
+      $('#drop-zone')?.classList.add('active');
     }
   });
   window.addEventListener('dragover', (e) => { e.preventDefault(); });
   window.addEventListener('dragleave', () => {
     dragDepth = Math.max(0, dragDepth - 1);
-    if (!dragDepth) $('#drop-zone').classList.remove('active');
+    if (!dragDepth) $('#drop-zone')?.classList.remove('active');
   });
   window.addEventListener('drop', (e) => {
     e.preventDefault();
     dragDepth = 0;
-    $('#drop-zone').classList.remove('active');
+    $('#drop-zone')?.classList.remove('active');
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   });
 
-  $('#btn-stats').addEventListener('click', showStatsSheet);
-  $('#btn-settings').addEventListener('click', showSettings);
-  $('#btn-trash').addEventListener('click', showTrash);
-  $('#btn-night').addEventListener('click', () => {
+  on('#btn-stats', 'click', showStatsSheet);
+  on('#btn-settings', 'click', showSettings);
+  on('#btn-trash', 'click', showTrash);
+  on('#btn-night', 'click', () => {
     const cur = settings.nightFilter > 0 ? 0 : 30;
     settings.nightFilter = cur;
     applySettings();
     saveSettings();
     toast(cur ? 'Ночной фильтр вкл' : 'Ночной фильтр выкл');
   });
-  $('#btn-theme').addEventListener('click', () => {
+  on('#btn-theme', 'click', () => {
     const i = THEMES.indexOf(settings.theme);
     settings.theme = THEMES[(i + 1) % THEMES.length];
     applySettings();
@@ -2075,29 +2085,31 @@ function bindEvents() {
 
   const searchInp = $('#lib-search');
   const clearBtn = $('#lib-search-clear');
-  searchInp.addEventListener('input', debounce(() => {
-    libSearchQuery = searchInp.value;
-    clearBtn.hidden = !libSearchQuery;
-    renderLibrary();
-  }, 150));
-  clearBtn.addEventListener('click', () => {
-    searchInp.value = '';
-    libSearchQuery = '';
-    clearBtn.hidden = true;
-    renderLibrary();
-  });
-  $('#lib-format-pills').addEventListener('click', (e) => {
+  if (searchInp && clearBtn) {
+    searchInp.addEventListener('input', debounce(() => {
+      libSearchQuery = searchInp.value;
+      clearBtn.hidden = !libSearchQuery;
+      renderLibrary();
+    }, 150));
+    clearBtn.addEventListener('click', () => {
+      searchInp.value = '';
+      libSearchQuery = '';
+      clearBtn.hidden = true;
+      renderLibrary();
+    });
+  }
+  on('#lib-format-pills', 'click', (e) => {
     const b = e.target.closest('[data-fmt]');
     if (!b) return;
     libFilterFormat = b.dataset.fmt;
     renderLibrary();
   });
-  $('#lib-sort').addEventListener('change', (e) => {
+  on('#lib-sort', 'change', (e) => {
     libSortBy = e.target.value;
     renderLibrary();
   });
 
-  $('#grid').addEventListener('click', (e) => {
+  on('#grid', 'click', (e) => {
     const del = e.target.closest('.book-del');
     const card = e.target.closest('.book-card');
     if (!card) return;
@@ -2110,27 +2122,27 @@ function bindEvents() {
     }
   });
 
-  $('#btn-close-reader').addEventListener('click', closeReader);
-  $('#btn-prev').addEventListener('click', goPrev);
-  $('#btn-next').addEventListener('click', goNext);
-  $('#btn-toc').addEventListener('click', () => showTOC('toc'));
-  $('#btn-search').addEventListener('click', showSearchSheet);
-  $('#btn-bookmark').addEventListener('click', addBookmark);
-  $('#btn-summary').addEventListener('click', showSummary);
-  $('#btn-reader-settings').addEventListener('click', showReaderSettings);
-  $('#btn-rsvp').addEventListener('click', startRSVP);
-  $('#btn-autoscroll').addEventListener('click', toggleAutoScroll);
-  $('#btn-tts').addEventListener('click', () => {
+  on('#btn-close-reader', 'click', closeReader);
+  on('#btn-prev', 'click', goPrev);
+  on('#btn-next', 'click', goNext);
+  on('#btn-toc', 'click', () => showTOC('toc'));
+  on('#btn-search', 'click', showSearchSheet);
+  on('#btn-bookmark', 'click', addBookmark);
+  on('#btn-summary', 'click', showSummary);
+  on('#btn-reader-settings', 'click', showReaderSettings);
+  on('#btn-rsvp', 'click', startRSVP);
+  on('#btn-autoscroll', 'click', toggleAutoScroll);
+  on('#btn-tts', 'click', () => {
     if (state.isSpeaking) speakText('');
     else currentChapterText().then((txt) => speakText(txt));
   });
-  $('#btn-fullscreen').addEventListener('click', () => {
+  on('#btn-fullscreen', 'click', () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => {});
     else document.exitFullscreen && document.exitFullscreen().catch(() => {});
   });
 
   let scrollTicking = false;
-  $('#reader-body').addEventListener('scroll', () => {
+  on('#reader-body', 'scroll', () => {
     if (!scrollTicking) {
       requestAnimationFrame(() => {
         updateCustomProgress();
@@ -2141,12 +2153,12 @@ function bindEvents() {
     }
   }, { passive: true });
 
-  $('#quick-nav').addEventListener('input', (e) => {
+  on('#quick-nav', 'input', (e) => {
     const idx = parseInt(e.target.value, 10);
     if (!Number.isNaN(idx)) renderChapter(idx, 0);
   });
 
-  $('#reader-body').addEventListener('click', (e) => {
+  on('#reader-body', 'click', (e) => {
     const noteEl = e.target.closest('.note-ref');
     if (noteEl) {
       e.stopPropagation();
@@ -2166,6 +2178,7 @@ function bindEvents() {
     let sx = 0, sy = 0, active = false, horiz = null;
     const body = $('#reader-body');
     const inner = $('#reader-inner');
+    if (!body || !inner) return;
     body.addEventListener('touchstart', (e) => {
       if (e.touches.length === 1) {
         sx = e.touches[0].clientX;
@@ -2207,7 +2220,7 @@ function bindEvents() {
     }, { passive: true });
   })();
 
-  $('#term-pill').addEventListener('click', (e) => {
+  on('#term-pill', 'click', (e) => {
     const b = e.target.closest('[data-act]');
     if (!b) return;
     const t = state.selection;
@@ -2218,44 +2231,47 @@ function bindEvents() {
     else if (b.dataset.act === 'speak') speakText(t);
   });
 
-  $('#reader-inner').addEventListener('mouseup', () => {
+  on('#reader-inner', 'mouseup', () => {
     setTimeout(() => {
       const t = window.getSelection().toString().trim();
       if (t && t.length >= 2 && t.length <= 300) showTermPill(t);
       else hideTermPill();
     }, 15);
   });
-  $('#reader-inner').addEventListener('touchend', () => {
+  on('#reader-inner', 'touchend', () => {
     setTimeout(() => {
       const t = window.getSelection().toString().trim();
       if (t && t.length >= 2 && t.length <= 300) showTermPill(t);
     }, 180);
   });
 
-  $('#btn-rsvp-close').addEventListener('click', stopRSVP);
-  $('#btn-rsvp-play').addEventListener('click', () => {
+  on('#btn-rsvp-close', 'click', stopRSVP);
+  on('#btn-rsvp-play', 'click', () => {
     if (rsvpInterval) pauseRSVP();
     else {
       if (rsvpIndex >= rsvpWords.length) rsvpIndex = 0;
       playRSVP();
     }
   });
-  $('#rsvp-speed').addEventListener('input', (e) => {
+  on('#rsvp-speed', 'input', (e) => {
     settings.rsvpSpeed = parseInt(e.target.value, 10);
-    $('#rsvp-speed-label').textContent = settings.rsvpSpeed + ' слов/мин';
+    const lbl = $('#rsvp-speed-label');
+    if (lbl) lbl.textContent = settings.rsvpSpeed + ' слов/мин';
     saveSettings();
     if (rsvpInterval) {
       pauseRSVP();
       playRSVP();
     }
   });
-  $('#rsvp-minus').addEventListener('click', () => {
+  on('#rsvp-minus', 'click', () => {
     const el = $('#rsvp-speed');
+    if (!el) return;
     el.value = Math.max(100, parseInt(el.value, 10) - 50);
     el.dispatchEvent(new Event('input'));
   });
-  $('#rsvp-plus').addEventListener('click', () => {
+  on('#rsvp-plus', 'click', () => {
     const el = $('#rsvp-speed');
+    if (!el) return;
     el.value = Math.min(1000, parseInt(el.value, 10) + 50);
     el.dispatchEvent(new Event('input'));
   });
@@ -2264,10 +2280,13 @@ function bindEvents() {
     if (e.target.matches('input,textarea,select')) return;
     if (e.key === 'Escape') {
       if (_currentOverlay) return closeSheet();
-      if (!$('#rsvp-overlay').hidden) return stopRSVP();
-      if (!$('#reader').hidden) return closeReader();
+      const rsvpOv = $('#rsvp-overlay');
+      if (rsvpOv && !rsvpOv.hidden) return stopRSVP();
+      const readerEl = $('#reader');
+      if (readerEl && !readerEl.hidden) return closeReader();
     }
-    if ($('#reader').hidden || _currentOverlay) return;
+    const readerEl = $('#reader');
+    if (!readerEl || readerEl.hidden || _currentOverlay) return;
     if (e.key === 'ArrowLeft') goPrev();
     else if (e.key === 'ArrowRight') goNext();
     else if (e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
@@ -2277,7 +2296,7 @@ function bindEvents() {
       e.preventDefault();
       pageUp();
     } else if (e.key === 'b' || e.key === 'B' || e.key === 'и' || e.key === 'И') addBookmark();
-    else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') $('#btn-fullscreen').click();
+    else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') $('#btn-fullscreen')?.click();
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -2301,16 +2320,51 @@ function bindEvents() {
 }
 
 /* ---------- Инициализация ---------- */
+function hideBoot() {
+  const boot = $('#boot');
+  if (boot) {
+    boot.style.display = 'none';
+    boot.hidden = true;
+  }
+}
+
+function withTimeout(promise, ms = 2500) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => {
+      timer = setTimeout(() => rej(new Error('Operation timeout')), ms);
+    })
+  ]).finally(() => clearTimeout(timer));
+}
+
+let resizeBound = false;
 async function init() {
-  await loadSettings();
-  applySettings();
-  bindEvents();
-  initPWAController({ openSheet, toast });
-  await loadLibrary();
-  $('#boot').style.display = 'none';
-  window.addEventListener('resize', debounce(() => {
-    if (state.rendition && state.rendition.resize) state.rendition.resize();
-  }, 200));
+  const bootGuard = setTimeout(hideBoot, 2500);
+  try {
+    applySettings();
+    bindEvents();
+    initPWAController({ openSheet, toast });
+    await withTimeout(Promise.all([loadSettings(), loadLibrary()]), 2200).catch(() => {
+      libraryCache = [];
+      progressMap = {};
+      renderLibrary();
+    });
+    applySettings();
+  } catch (err) {
+    console.error('GRIMOIRE init error:', err);
+    toast('Ошибка инициализации хранилища', 3000);
+    try { renderLibrary(); } catch { /* ignore */ }
+  } finally {
+    clearTimeout(bootGuard);
+    hideBoot();
+    if (!resizeBound) {
+      resizeBound = true;
+      window.addEventListener('resize', debounce(() => {
+        if (state.rendition && state.rendition.resize) state.rendition.resize();
+      }, 200));
+    }
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

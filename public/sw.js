@@ -1,4 +1,7 @@
-const CACHE_NAME = 'grimoire-shell-v4';
+const CACHE_NAME = 'grimoire-shell-v5';
+const INDEX_URL = new URL('./index.html', self.location.href).href;
+const SCOPE_PATH = new URL('./', self.location.href).pathname;
+
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -48,27 +51,28 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  if (req.cache === 'only-if-cached' && req.mode !== 'same-origin') return;
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
   if (req.mode === 'navigate') {
     event.respondWith(
-      caches.match('./index.html').then((cached) => {
-        const networkPromise = fetch(req).then((res) => {
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE_NAME).then((c) => c.put('./index.html', copy));
-          }
-          return res;
-        }).catch(() => cached);
-        return cached || networkPromise;
-      })
+      fetch(req).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(INDEX_URL, copy));
+        }
+        return res;
+      }).catch(() => caches.match(INDEX_URL))
     );
     return;
   }
 
-  if (url.pathname.includes('/vendor/') || url.pathname.includes('/icons/')) {
+  if (
+    url.pathname.startsWith(SCOPE_PATH + 'vendor/') ||
+    url.pathname.startsWith(SCOPE_PATH + 'icons/')
+  ) {
     event.respondWith(
       caches.match(req).then((cached) => {
         if (cached) return cached;

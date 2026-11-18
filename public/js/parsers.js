@@ -712,13 +712,13 @@ export function ensurePdfJs() {
   if (pdfJsPromise) return pdfJsPromise;
   pdfJsPromise = new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = '/vendor/pdf.min.js';
+    s.src = './vendor/pdf.min.js';
     s.onload = () => {
       if (!window.pdfjsLib) {
         pdfJsPromise = null;
         return rej(new Error('PDF.js не инициализирован'));
       }
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.min.js';
       res(window.pdfjsLib);
     };
     s.onerror = () => {

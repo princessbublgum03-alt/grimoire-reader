@@ -123,3 +123,31 @@
 <div id="rsvp-overlay" hidden>
   <div style="position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px"><button class="icon-btn" id="btn-rsvp-close" aria-label="Закрыть скорочтение"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:18px" id="rsvp-progress-lbl">0 / 0</div>
+  <div class="rsvp-word-container">
+    <span class="rsvp-left" id="rsvp-left"></span>
+    <span class="rsvp-orp" id="rsvp-orp"></span>
+    <span class="rsvp-right" id="rsvp-right"></span>
+  </div>
+  <div class="rsvp-controls">
+    <button class="rsvp-btn" id="btn-rsvp-play" aria-label="Старт / Пауза">
+      <svg id="rsvp-icon-play" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+      <svg id="rsvp-icon-pause" viewBox="0 0 24 24" style="display:none"><rect x="6" y="4" width="4" height="16" fill="currentColor" stroke="none"/><rect x="14" y="4" width="4" height="16" fill="currentColor" stroke="none"/></svg>
+    </button>
+    <div class="rsvp-speed">
+      <button class="icon-btn" id="rsvp-minus" aria-label="Медленнее">−</button>
+      <input type="range" id="rsvp-speed" min="100" max="1000" step="10" value="300" aria-label="Скорость скорочтения">
+      <button class="icon-btn" id="rsvp-plus" aria-label="Быстрее">+</button>
+    </div>
+    <div id="rsvp-speed-label" style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)">300 слов/мин</div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<input type="file" id="file-input" multiple hidden accept=".epub,.fb2,.zip,.txt,.md,.markdown,.mobi,.prc,.azw,.azw3,.docx,.odt,.rtf,.pdf,.cbz,.html,.htm,.xhtml">
+<input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+<input type="file" id="cover-input" accept="image/*" hidden>
+<input type="file" id="backup-input" accept=".json,application/json" hidden>
+
+</body>
+</html>

@@ -77,9 +77,9 @@ export function initPWAController({ openSheet, toast }) {
   updateInstallUI();
   updateOnlineUI();
 
-  if ('serviceWorker' in navigator) {
+  if (navigator.serviceWorker && typeof navigator.serviceWorker.register === 'function') {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
     });
   }
 }
