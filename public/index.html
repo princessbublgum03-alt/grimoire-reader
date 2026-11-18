@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="abyss" data-justify="1" data-indent="1" data-hyphens="1">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c" id="meta-theme">
+<meta name="description" content="GRIMOIRE — автономная читалка книг с локальной библиотекой, заметками, словарём, озвучкой и скорочтением.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GRIMOIRE">
+<title>GRIMOIRE</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/css/styles.css">
+<script src="/vendor/jszip.min.js" defer></script>
+<script src="/vendor/epub.min.js" defer></script>
+<script type="module" src="/js/app.js"></script>
+</head>
+<body>
+
+<div id="night-filter"></div>
+<div id="boot"><div class="brand">GRIMOIRE</div><div class="rule" style="width:180px"><span>◆</span></div><div class="spinner"></div></div>
+
+<div id="drop-zone">
+  <svg viewBox="0 0 24 24" style="width:44px;height:44px;stroke:var(--accent);fill:none;stroke-width:1.2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+  <div style="font-family:var(--serif);font-size:16px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)">Отпустите файлы для импорта</div>
+  <div class="hint">EPUB, FB2, DOCX, ODT, RTF, PDF, MOBI, AZW3, HTML, TXT, MD, CBZ, ZIP</div>
+</div>
+
+<div id="library">
+  <div class="topbar">
+    <div id="offline-badge" class="offline-badge" hidden role="status" aria-live="polite"><span class="offline-dot"></span>Офлайн</div>
+    <button class="icon-btn" id="btn-install" title="Установить приложение" aria-label="Установить приложение" hidden><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
+    <button class="icon-btn" id="btn-stats" title="Статистика и данные" aria-label="Статистика"><svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></button>
+    <button class="icon-btn" id="btn-night" title="Ночной фильтр" aria-label="Ночной фильтр"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <button class="icon-btn" id="btn-theme" title="Сменить тему" aria-label="Сменить тему"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17"/></svg></button>
+    <button class="icon-btn" id="btn-settings" title="Настройки" aria-label="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/></svg></button>
+    <button class="icon-btn" id="btn-import-folder" title="Добавить папку" aria-label="Добавить папку"><svg viewBox="0 0 24 24"><path d="M3 7h5l2-3h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg></button>
+    <button class="icon-btn" id="btn-trash" title="Корзина" aria-label="Корзина"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+    <button class="icon-btn" id="btn-import" title="Добавить книгу" aria-label="Добавить книгу"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
+
+  <header class="hero"><h1 class="brand">GRIMOIRE</h1><div class="rule"><span>◆</span></div></header>
+
+  <div class="lib-controls" id="lib-controls" hidden>
+    <div class="lib-search-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input type="text" id="lib-search" class="lib-search" placeholder="Поиск по названию или автору…" aria-label="Поиск по названию или автору">
+      <button class="lib-search-clear" id="lib-search-clear" hidden aria-label="Очистить поиск">✕</button>
+    </div>
+    <div class="lib-filters">
+      <div id="lib-format-pills" style="display:flex;gap:6px"></div>
+      <select id="lib-sort" class="lib-sort" aria-label="Сортировка">
+        <option value="recent">Недавние</option>
+        <option value="added">Новые</option>
+        <option value="title">А–Я</option>
+        <option value="progress">По прогрессу</option>
+      </select>
+    </div>
+  </div>
+
+  <main id="grid" class="grid" data-testid="library-grid"></main>
+
+  <div id="empty" class="empty" hidden>
+    <svg class="sigil" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1"><circle cx="50" cy="46" r="30"/><path d="M50 16 L76 78 L24 78 Z"/><circle cx="50" cy="46" r="38" stroke-dasharray="2 6"/></svg>
+    <div>
+      <p style="font-family:var(--serif);font-size:15px;letter-spacing:.22em;color:var(--muted);margin:0 0 8px">Библиотека пуста</p>
+      <p class="hint" style="max-width:360px;margin:0 auto">Поддерживаются EPUB, FB2, DOCX, ODT, RTF, PDF, MOBI, AZW3, HTML, TXT, MD, CBZ и ZIP-архивы.<br>Перетащите файлы сюда или выберите на устройстве.</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <button class="btn-ghost" id="btn-import-2">Добавить книгу</button>
+      <button class="btn-ghost" id="btn-import-folder-2">Добавить папку</button>
+    </div>
+  </div>
+</div>
+
+<section id="reader" hidden>
+  <div id="reader-body"><div id="reader-inner" class="reader-inner"></div></div>
+  <div id="epub-host" hidden></div>
+
+  <header class="reader-bar reader-bar--top">
+    <button class="icon-btn" id="btn-close-reader" title="В библиотеку (Esc)" aria-label="В библиотеку"><svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></button>
+    <div class="reader-meta"><div class="rt-title" id="rt-book"></div><div class="rt-sub" id="rt-chapter"></div></div>
+    <button class="icon-btn" id="btn-search" title="Поиск по книге" aria-label="Поиск по книге"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button>
+    <button class="icon-btn" id="btn-bookmark" title="Добавить закладку (B)" aria-label="Добавить закладку"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button>
+    <button class="icon-btn" id="btn-rsvp" title="Скорочтение RSVP" aria-label="Скорочтение"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></button>
+    <button class="icon-btn" id="btn-summary" title="Суть главы" aria-label="Суть главы"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9z"/></svg></button>
+    <button class="icon-btn" id="btn-toc" title="Содержание, закладки и цитаты" aria-label="Содержание и заметки"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <button class="icon-btn" id="btn-reader-settings" title="Шрифт и вид" aria-label="Настройки чтения"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/></svg></button>
+    <button class="icon-btn" id="btn-fullscreen" title="Полный экран (F)" aria-label="Во весь экран"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+  </header>
+
+  <footer class="reader-bar reader-bar--bottom">
+    <div id="quick-nav-container" style="display:none"><input type="range" id="quick-nav" min="0" max="100" value="0" aria-label="Навигация по главам"></div>
+    <div class="progress-line"><i id="progress-fill"></i></div>
+    <div class="reader-foot">
+      <div style="display:flex;align-items:center;gap:2px">
+        <button class="icon-btn" id="btn-tts" title="Озвучка текста" aria-label="Озвучить текст"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
+        <button class="icon-btn" id="btn-prev" title="Предыдущая глава" aria-label="Предыдущая глава"><svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></button>
+      </div>
+      <div class="foot-info">
+        <span id="rt-ch-count"></span>
+        <span id="rt-time-left"></span>
+        <span id="rt-percent">0%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:2px">
+        <button class="icon-btn" id="btn-next" title="Следующая глава" aria-label="Следующая глава"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+        <button class="icon-btn" id="btn-autoscroll" title="Автоскролл" aria-label="Автоскролл"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4"/></svg></button>
+      </div>
+    </div>
+  </footer>
+</section>
+
+<div id="term-pill" hidden>
+  <button class="pill-btn" data-act="term"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>Вникнуть</button>
+  <button class="pill-btn" data-act="note"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Цитата</button>
+  <button class="pill-btn" data-act="copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Копия</button>
+  <button class="pill-btn" data-act="speak"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Слушать</button>
+</div>
+
+<div id="rsvp-overlay" hidden>
+  <div style="position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px"><button class="icon-btn" id="btn-rsvp-close" aria-label="Закрыть скорочтение"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:18px" id="rsvp-progress-lbl">0 / 0</div>
+  <div class="rsvp-word-container"><span class="rsvp-left" id="rsvp-left"></span><span class="rsvp-orp" id="rsvp-orp"></span><span class="rsvp-right" id="rsvp-right"></span></div>
+  <div class="rsvp-controls">
+    <div class="rsvp-speed"><span id="rsvp-speed-label">300 слов/мин</span></div>
+    <div class="rsvp-speed" style="width:100%">
+      <button class="icon-btn" id="rsvp-minus" title="Медленнее" aria-label="Медленнее"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <input type="range" id="rsvp-speed" min="100" max="1000" step="10" value="300" style="flex:1" aria-label="Скорость скорочтения">
+      <button class="icon-btn" id="rsvp-plus" title="Быстрее" aria-label="Быстрее"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <button class="rsvp-btn" id="btn-rsvp-play" aria-label="Старт или пауза скорочтения">
+      <svg viewBox="0 0 24 24" id="rsvp-icon-play"><path d="M5 3l14 9-14 9V3z"/></svg>
+      <svg viewBox="0 0 24 24" id="rsvp-icon-pause" style="display:none"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="file-input" accept=".epub,.fb2,.zip,.txt,.md,.markdown,.mobi,.prc,.azw,.azw3,.docx,.odt,.rtf,.pdf,.cbz,.html,.htm,.xhtml" multiple hidden>
+<input type="file" id="cover-input" accept="image/*" hidden>
+<input type="file" id="folder-input" webkitdirectory multiple hidden>
+<input type="file" id="backup-input" accept=".json" hidden>
+
+</body>
+</html>

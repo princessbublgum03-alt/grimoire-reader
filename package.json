@@ -1,0 +1,20 @@
+{
+  "name": "grimoire-reader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "node scripts/sync-vendor.mjs && node scripts/generate-icons.mjs && node --check server.js",
+    "lint": "node --check server.js && node --check public/sw.js && node --check public/js/text-utils.js && node --check public/js/analysis.js && node --check public/js/db.js && node --check public/js/parsers.js && node --check public/js/pwa.js && node --check public/js/app.js",
+    "test": "npx tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "epubjs": "0.3.93",
+    "express": "^4.21.2",
+    "jszip": "3.10.1",
+    "pdfjs-dist": "3.11.174",
+    "tsx": "^4.23.15"
+  }
+}
