@@ -1,24 +1,24 @@
-const CACHE_NAME = 'grimoire-shell-v3';
+const CACHE_NAME = 'grimoire-shell-v4';
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/css/styles.css',
-  '/js/text-utils.js',
-  '/js/analysis.js',
-  '/js/db.js',
-  '/js/parsers.js',
-  '/js/pwa.js',
-  '/js/app.js',
-  '/vendor/jszip.min.js',
-  '/vendor/epub.min.js',
-  '/vendor/pdf.min.js',
-  '/vendor/pdf.worker.min.js',
-  '/icons/icon.svg',
-  '/icons/pwa-192x192.png',
-  '/icons/pwa-512x512.png',
-  '/icons/pwa-maskable-512x512.png',
-  '/icons/apple-touch-icon.png'
+  './',
+  './index.html',
+  './manifest.json',
+  './css/styles.css',
+  './js/text-utils.js',
+  './js/analysis.js',
+  './js/db.js',
+  './js/parsers.js',
+  './js/pwa.js',
+  './js/app.js',
+  './vendor/jszip.min.js',
+  './vendor/epub.min.js',
+  './vendor/pdf.min.js',
+  './vendor/pdf.worker.min.js',
+  './icons/icon.svg',
+  './icons/pwa-192x192.png',
+  './icons/pwa-512x512.png',
+  './icons/pwa-maskable-512x512.png',
+  './icons/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -54,11 +54,11 @@ self.addEventListener('fetch', (event) => {
 
   if (req.mode === 'navigate') {
     event.respondWith(
-      caches.match('/index.html').then((cached) => {
+      caches.match('./index.html').then((cached) => {
         const networkPromise = fetch(req).then((res) => {
           if (res && res.ok) {
             const copy = res.clone();
-            caches.open(CACHE_NAME).then((c) => c.put('/index.html', copy));
+            caches.open(CACHE_NAME).then((c) => c.put('./index.html', copy));
           }
           return res;
         }).catch(() => cached);
@@ -68,7 +68,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.startsWith('/vendor/') || url.pathname.startsWith('/icons/')) {
+  if (url.pathname.includes('/vendor/') || url.pathname.includes('/icons/')) {
     event.respondWith(
       caches.match(req).then((cached) => {
         if (cached) return cached;
