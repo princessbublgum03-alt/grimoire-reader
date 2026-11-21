@@ -148,6 +148,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 #reader.bars-hidden #reader-body{top:calc(4px + env(safe-area-inset-top));bottom:env(safe-area-inset-bottom)}
 #epub-host{position:absolute;left:0;right:0;top:calc(54px + env(safe-area-inset-top));bottom:calc(56px + env(safe-area-inset-bottom));transition:transform .24s cubic-bezier(.2,.8,.2,1),opacity .2s;will-change:transform}
 .reader-inner{max-width:min(94vw,calc(var(--maxw) * 1ch));margin:0 auto;padding:16px 20px 120px;font-family:var(--reader-font);font-size:var(--fs);line-height:var(--lh);letter-spacing:var(--ls);color:var(--text);overflow-wrap:break-word;text-rendering:optimizeLegibility;transition:transform .24s cubic-bezier(.2,.8,.2,1),opacity .2s;will-change:transform}
+.reader-inner p,.reader-inner div,.reader-inner span,.reader-inner li,.reader-inner blockquote,.reader-inner font,.reader-inner td,.reader-inner th,.reader-inner a,.reader-inner em,.reader-inner strong,.reader-inner b,.reader-inner i{font-family:var(--reader-font)}
 .swiping{transition:none!important}
 
 /* Thin always-visible 3px reading progress bar at the very top */
@@ -188,9 +189,9 @@ html[data-focus="1"] .reader-inner blockquote.focused{opacity:1}
 html[data-focus="1"] .reader-inner h2,html[data-focus="1"] .reader-inner h3,html[data-focus="1"] .reader-inner h4{opacity:.25}
 
 .chapter-head{padding:12px 0 26px;text-align:center}
-.chapter-head h2{font-family:var(--serif);font-weight:400;font-size:calc(var(--fs) * 1.28);letter-spacing:.06em;margin:0 0 18px;color:var(--text);line-height:1.3}
+.chapter-head h2{font-family:var(--reader-font);font-weight:400;font-size:calc(var(--fs) * 1.28);letter-spacing:.04em;margin:0 0 18px;color:var(--text);line-height:1.3}
 .chapter-head .rule{font-size:8px}
-.reader-inner h3,.reader-inner h4{font-family:var(--serif);font-weight:400;margin:1.8em 0 .8em;line-height:1.3}
+.reader-inner h1,.reader-inner h2,.reader-inner h3,.reader-inner h4,.reader-inner h5,.reader-inner h6{font-family:var(--reader-font);font-weight:400;margin:1.8em 0 .8em;line-height:1.3}
 .reader-inner h3{font-size:1.15em;letter-spacing:.04em;text-align:center}
 .reader-inner h4{font-size:1.03em;color:var(--accent);letter-spacing:.04em}
 .reader-inner blockquote{margin:1.3em 0;padding:.2em 0 .2em 1.2em;border-left:1px solid var(--line-accent);color:var(--muted);font-style:italic}
@@ -207,7 +208,7 @@ html[data-focus="1"] .reader-inner h2,html[data-focus="1"] .reader-inner h3,html
 .note-ref{color:var(--accent);cursor:pointer;font-size:.75em;padding:0 .2em;text-decoration:none;border-bottom:1px dotted var(--line-accent);vertical-align:super;line-height:0}
 .note-ref:hover{color:var(--text);background:var(--panel)}
 .reader-inner hr{border:0;height:1px;background:var(--line-accent);margin:2em auto;width:40%}
-.reader-inner code,.reader-inner pre{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86em}
+.reader-inner code,.reader-inner pre{font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:.86em}
 .reader-inner pre{background:var(--bg-2);border:1px solid var(--line);padding:1em;overflow-x:auto;border-radius:2px;text-indent:0}
 .reader-inner ul,.reader-inner ol{padding-left:1.5em;margin:0 0 1.05em}
 .reader-inner figure{margin:1.4em auto;text-align:center}

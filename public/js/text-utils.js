@@ -142,7 +142,7 @@ export function sanitizeHtml(html) {
       for (const a of [...el.attributes]) {
         const name = a.name.toLowerCase();
         const val = String(a.value || '').trim();
-        if (name.startsWith('on') || name === 'style' || name === 'srcdoc') {
+        if (name.startsWith('on') || name === 'style' || name === 'srcdoc' || (el.tagName === 'FONT' && (name === 'face' || name === 'size' || name === 'color'))) {
           el.removeAttribute(a.name);
         } else if ((name === 'href' || name === 'src' || name === 'xlink:href') && /^(javascript|vbscript|data:\s*text\/html):/i.test(val)) {
           el.removeAttribute(a.name);
@@ -156,6 +156,7 @@ export function sanitizeHtml(html) {
     .replace(/<(script|style|link|meta|input|button|base)[^>]*\/?>/gi, '')
     .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\sstyle\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(<font\b[^>]*?)\s(?:face|size|color)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '$1')
     .replace(/(href|src)\s*=\s*["']\s*(javascript|vbscript):[^"']*["']/gi, '$1="#"');
 }
 

@@ -100,15 +100,15 @@ function downloadBlob(blob, filename) {
 
 /* ---------- Настройки, Шрифты и Темы ---------- */
 const FONTS = {
-  lexend: { name: 'Lexend', family: "'Lexend','Atkinson Hyperlegible Next',system-ui,sans-serif", tag: 'фокус' },
-  atkinson: { name: 'Atkinson', family: "'Atkinson Hyperlegible Next','Atkinson Hyperlegible',Verdana,system-ui,sans-serif", tag: 'СДВГ' },
-  literata: { name: 'Literata', family: "'Literata',Georgia,'Palatino Linotype',serif", tag: 'книжный' },
+  lexend: { name: 'Lexend', family: "'Lexend','Nunito',system-ui,sans-serif", tag: 'фокус' },
+  atkinson: { name: 'Atkinson', family: "'Atkinson Hyperlegible Next','IBM Plex Sans',system-ui,sans-serif", tag: 'СДВГ' },
+  literata: { name: 'Literata', family: "'Literata',Georgia,serif", tag: 'книжный' },
   jetbrains: { name: 'JetBrains', family: "'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace", tag: 'моно' },
-  georgia: { name: 'Georgia', family: "Georgia,'Iowan Old Style','Palatino Linotype','Times New Roman',serif", tag: 'классика' },
-  palatino: { name: 'Palatino', family: "'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif", tag: 'антиква' },
-  lora: { name: 'Baskerville', family: "Baskerville,'Baskerville Old Face','Hoefler Text',Georgia,serif", tag: 'мягкий' },
-  crimson: { name: 'Garamond', family: "Garamond,'EB Garamond','Times New Roman',serif", tag: 'строгий' },
-  sans: { name: 'Grotesk', family: "ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif", tag: 'система' }
+  georgia: { name: 'PT Serif', family: "'PT Serif',Georgia,'Times New Roman',serif", tag: 'классика' },
+  palatino: { name: 'Spectral', family: "'Spectral','Palatino Linotype',Georgia,serif", tag: 'антиква' },
+  lora: { name: 'Lora', family: "'Lora',Baskerville,Georgia,serif", tag: 'мягкий' },
+  crimson: { name: 'Garamond', family: "'EB Garamond',Garamond,'Times New Roman',serif", tag: 'строгий' },
+  sans: { name: 'Inter', family: "'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif", tag: 'гротеск' }
 };
 
 const SETTINGS_LS_KEY = 'grimoire_settings_v1';
@@ -225,7 +225,10 @@ function applySettings() {
   r.style.setProperty('--lh', String(settings.lineHeight));
   r.style.setProperty('--ls', Number(settings.letterSpacing || 0).toFixed(2) + 'px');
   r.style.setProperty('--maxw', String(settings.maxWidth));
-  r.style.setProperty('--reader-font', getFontFamily(settings.fontFamily));
+  const family = getFontFamily(settings.fontFamily);
+  r.style.setProperty('--reader-font', family);
+  const inner = $('#reader-inner');
+  if (inner) inner.style.fontFamily = family;
   r.style.setProperty('--night-opacity', String(settings.nightFilter / 100));
   const m = $('#meta-theme');
   if (m) m.setAttribute('content', THEME_COLORS[settings.theme] || '#0a0a0c');
@@ -1055,6 +1058,7 @@ async function openEpub(book, prog) {
     rendition.hooks.content.register((contents) => {
       try {
         const doc = contents.document;
+        injectEpubStyles(doc);
         let sx = 0, sy = 0, moved = false, horiz = null;
         doc.addEventListener('touchstart', (e) => {
           if (e.touches && e.touches.length === 1) {
@@ -1177,6 +1181,45 @@ async function openEpub(book, prog) {
 }
 
 let themeSeq = 0;
+
+function injectEpubStyles(doc) {
+  if (!doc || !doc.head) return;
+  const fontsLink = $('#grimoire-fonts-css');
+  if (fontsLink && fontsLink.href && !doc.getElementById('grimoire-epub-fonts')) {
+    const link = doc.createElement('link');
+    link.id = 'grimoire-epub-fonts';
+    link.rel = 'stylesheet';
+    link.href = fontsLink.href;
+    doc.head.appendChild(link);
+  }
+  const cs = getComputedStyle(document.documentElement);
+  const bg = cs.getPropertyValue('--bg').trim();
+  const text = cs.getPropertyValue('--text').trim();
+  const accent = cs.getPropertyValue('--accent').trim();
+  const sel = cs.getPropertyValue('--sel').trim();
+  const family = getFontFamily(settings.fontFamily);
+  const ls = Number(settings.letterSpacing || 0).toFixed(2) + 'px';
+  const align = settings.justify ? 'justify' : 'left';
+  const indent = settings.indent ? '1.4em' : '0';
+  const css = `
+    html, body { background: ${bg} !important; color: ${text} !important; font-family: ${family} !important; font-size: ${settings.fontSize}px !important; line-height: ${settings.lineHeight} !important; letter-spacing: ${ls} !important; }
+    body { padding: 0 8px !important; margin: 0 !important; }
+    p, div, span, li, blockquote, section, article, td, th, font, em, strong, b, i, h1, h2, h3, h4, h5, h6 { font-family: ${family} !important; letter-spacing: ${ls} !important; }
+    p { color: ${text} !important; text-align: ${align} !important; text-indent: ${indent} !important; line-height: ${settings.lineHeight} !important; }
+    code, pre { font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace !important; }
+    a { color: ${accent} !important; }
+    img { max-width: 100% !important; height: auto !important; }
+    ::selection { background: ${sel} !important; }
+  `;
+  let styleEl = doc.getElementById('grimoire-epub-override');
+  if (!styleEl) {
+    styleEl = doc.createElement('style');
+    styleEl.id = 'grimoire-epub-override';
+    doc.head.appendChild(styleEl);
+  }
+  styleEl.textContent = css;
+}
+
 function applyEpubTheme() {
   const rd = state.rendition;
   if (!rd || !rd.themes) return;
@@ -1186,6 +1229,7 @@ function applyEpubTheme() {
   const accent = cs.getPropertyValue('--accent').trim();
   const sel = cs.getPropertyValue('--sel').trim();
   const family = getFontFamily(settings.fontFamily);
+  const ls = Number(settings.letterSpacing || 0).toFixed(2) + 'px';
   const name = 'grimoire-theme-' + (++themeSeq);
   try {
     rd.themes.register(name, {
@@ -1194,11 +1238,19 @@ function applyEpubTheme() {
         background: bg + ' !important',
         color: text + ' !important',
         'font-family': family + ' !important',
-        'letter-spacing': Number(settings.letterSpacing || 0).toFixed(2) + 'px !important',
+        'letter-spacing': ls + ' !important',
         padding: '0 8px !important',
         margin: '0 !important'
       },
-      p: { color: text + ' !important', 'text-align': settings.justify ? 'justify !important' : 'left !important', 'text-indent': settings.indent ? '1.4em !important' : '0 !important' },
+      'p, div, span, li, blockquote, section, article, td, th, font, h1, h2, h3, h4, h5, h6': {
+        'font-family': family + ' !important',
+        'letter-spacing': ls + ' !important'
+      },
+      p: {
+        color: text + ' !important',
+        'text-align': settings.justify ? 'justify !important' : 'left !important',
+        'text-indent': settings.indent ? '1.4em !important' : '0 !important'
+      },
       a: { color: accent + ' !important' },
       img: { 'max-width': '100% !important', height: 'auto !important' },
       '::selection': { background: sel + ' !important' }
@@ -1206,8 +1258,12 @@ function applyEpubTheme() {
     rd.themes.select(name);
     rd.themes.fontSize(settings.fontSize + 'px');
     rd.themes.override('line-height', String(settings.lineHeight));
-    rd.themes.override('letter-spacing', Number(settings.letterSpacing || 0).toFixed(2) + 'px');
+    rd.themes.override('letter-spacing', ls);
     rd.themes.override('font-family', family);
+    const contents = rd.getContents ? rd.getContents() : [];
+    (Array.isArray(contents) ? contents : [contents]).forEach((c) => {
+      if (c && c.document) injectEpubStyles(c.document);
+    });
   } catch { /* ignore */ }
 }
 

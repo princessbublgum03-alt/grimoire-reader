@@ -50,11 +50,13 @@ test('decodeBuffer handles UTF-8 BOM, UTF-16LE, and Windows-1251', () => {
   assert.equal(decodeBuffer(win1251), 'Тест');
 });
 
-test('sanitizeHtml strips scripts, event handlers, and javascript URIs', () => {
-  const dirty = '<p onclick="evil()">Привет</p><script>alert(1)</script><a href="javascript:alert(2)">link</a>';
+test('sanitizeHtml strips scripts, event handlers, javascript URIs, and legacy font face overrides', () => {
+  const dirty = '<p onclick="evil()" style="font-family:Arial"><font face="Times New Roman" size="5" color="red">Привет</font></p><script>alert(1)</script><a href="javascript:alert(2)">link</a>';
   const clean = sanitizeHtml(dirty);
   assert.equal(clean.includes('<script'), false);
   assert.equal(clean.includes('onclick'), false);
+  assert.equal(clean.includes('style='), false);
+  assert.equal(clean.includes('face='), false);
   assert.equal(clean.includes('javascript:'), false);
   assert.equal(clean.includes('Привет'), true);
 });
