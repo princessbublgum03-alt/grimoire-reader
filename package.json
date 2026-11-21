@@ -7,7 +7,7 @@
     "dev": "node server.js",
     "start": "node server.js",
     "build": "node scripts/sync-vendor.mjs && node scripts/generate-icons.mjs && node --check server.js",
-    "lint": "node --check server.js && node --check public/sw.js && node --check public/js/text-utils.js && node --check public/js/analysis.js && node --check public/js/db.js && node --check public/js/parsers.js && node --check public/js/pwa.js && node --check public/js/app.js",
+    "lint": "node --check server.js && node --check public/sw.js && node --check public/js/text-utils.js && node --check public/js/analysis.js && node --check public/js/db.js && node --check public/js/parsers.js && node --check public/js/focus-tools.js && node --check public/js/pwa.js && node --check public/js/app.js",
     "test": "npx tsx --test tests/*.test.ts"
   },
   "dependencies": {

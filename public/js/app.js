@@ -43,6 +43,12 @@ import {
 } from './parsers.js';
 
 import { initPWAController } from './pwa.js';
+import {
+  applyReadingEnhancements,
+  refreshBeeLineColors,
+  createAmbientNoiseController,
+  DEMO_ARTICLE
+} from './focus-tools.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 
@@ -92,45 +98,118 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-/* ---------- Настройки и Темы (100% локальные шрифты) ---------- */
+/* ---------- Настройки, Шрифты и Темы ---------- */
 const FONTS = {
+  lexend: { name: 'Lexend', family: "'Lexend','Atkinson Hyperlegible Next',system-ui,sans-serif", tag: 'фокус' },
+  atkinson: { name: 'Atkinson', family: "'Atkinson Hyperlegible Next','Atkinson Hyperlegible',Verdana,system-ui,sans-serif", tag: 'СДВГ' },
+  literata: { name: 'Literata', family: "'Literata',Georgia,'Palatino Linotype',serif", tag: 'книжный' },
+  jetbrains: { name: 'JetBrains', family: "'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace", tag: 'моно' },
   georgia: { name: 'Georgia', family: "Georgia,'Iowan Old Style','Palatino Linotype','Times New Roman',serif", tag: 'классика' },
-  palatino: { name: 'Palatino', family: "'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif", tag: 'книжный' },
-  literata: { name: 'Charter', family: "Charter,'Bitstream Charter','Sitka Text',Georgia,serif", tag: 'ридер' },
+  palatino: { name: 'Palatino', family: "'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif", tag: 'антиква' },
   lora: { name: 'Baskerville', family: "Baskerville,'Baskerville Old Face','Hoefler Text',Georgia,serif", tag: 'мягкий' },
-  spectral: { name: 'Cambria', family: "Cambria,'Liberation Serif','Times New Roman',serif", tag: 'изящный' },
-  crimson: { name: 'Garamond', family: "Garamond,'EB Garamond','Times New Roman',serif", tag: 'антиква' },
-  merriweather: { name: 'Constantia', family: "Constantia,'DejaVu Serif',Georgia,serif", tag: 'чёткий' },
-  atkinson: { name: 'Verdana', family: "Verdana,'DejaVu Sans',system-ui,sans-serif", tag: 'доступный' },
+  crimson: { name: 'Garamond', family: "Garamond,'EB Garamond','Times New Roman',serif", tag: 'строгий' },
   sans: { name: 'Grotesk', family: "ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif", tag: 'система' }
 };
 
+const SETTINGS_LS_KEY = 'grimoire_settings_v1';
+
 const DEFAULT_SETTINGS = {
   theme: 'abyss',
-  fontSize: 19,
-  lineHeight: 1.75,
-  fontFamily: 'georgia',
-  maxWidth: 68,
-  justify: true,
+  fontSize: 20,
+  lineHeight: 1.7,
+  letterSpacing: 0,
+  fontFamily: 'literata',
+  maxWidth: 64,
+  justify: false,
   indent: true,
   hyphens: true,
   tapZones: true,
   nightFilter: 0,
   focusMode: false,
+  bionicReading: false,
+  bionicStrength: 'medium',
+  readingRuler: false,
+  beelineMode: false,
+  zenAutoHide: true,
+  noiseMode: 'off',
+  noiseVolume: 0.25,
   ttsRate: 1,
   ttsPitch: 1,
   rsvpSpeed: 300,
   autoScrollSpeed: 5,
   epubFlow: 'scrolled',
-  epubTouchMigrated: true
+  epubTouchMigrated: true,
+  updatedAt: 0
 };
 
-const THEMES = ['abyss', 'parchment', 'sepia', 'forest', 'void'];
-const THEME_NAMES = { abyss: 'Бездна', parchment: 'Пергамент', sepia: 'Сепия', forest: 'Чаща', void: 'Пустота' };
-const THEME_COLORS = { abyss: '#0a0a0c', parchment: '#e8dec8', sepia: '#1c1712', forest: '#0b110e', void: '#000000' };
+const THEMES = ['abyss', 'graphite', 'parchment', 'soft', 'sepia', 'forest', 'void'];
+const THEME_NAMES = {
+  abyss: 'Бездна',
+  graphite: 'Графит',
+  parchment: 'Бумага',
+  soft: 'Мягкий',
+  sepia: 'Сепия',
+  forest: 'Чаща',
+  void: 'OLED'
+};
+const THEME_COLORS = {
+  abyss: '#0a0a0c',
+  graphite: '#1a1b1e',
+  parchment: '#f4ecd8',
+  soft: '#eaeaea',
+  sepia: '#1c1712',
+  forest: '#0b110e',
+  void: '#000000'
+};
 
-let settings = { ...DEFAULT_SETTINGS };
-const getFontFamily = (k) => (FONTS[k] || FONTS.georgia).family;
+function readLocalSettings() {
+  try {
+    const raw = window.localStorage && window.localStorage.getItem(SETTINGS_LS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+let settings = { ...DEFAULT_SETTINGS, ...(readLocalSettings() || {}) };
+const getFontFamily = (k) => (FONTS[k] || FONTS.literata).family;
+const noiseController = createAmbientNoiseController();
+let lastActiveNoiseMode = settings.noiseMode && settings.noiseMode !== 'off' ? settings.noiseMode : 'pink';
+
+function updateFocusToolbarBadges() {
+  const bionicBtn = $('#btn-bionic-quick');
+  if (bionicBtn) {
+    bionicBtn.classList.toggle('active', !!settings.bionicReading);
+    bionicBtn.setAttribute('aria-pressed', settings.bionicReading ? 'true' : 'false');
+  }
+  const noiseActive = noiseController.getState().mode !== 'off';
+  const noiseBtn = $('#btn-noise-quick');
+  if (noiseBtn) {
+    noiseBtn.classList.toggle('active', noiseActive);
+    noiseBtn.setAttribute('aria-pressed', noiseActive ? 'true' : 'false');
+  }
+  const anyFocus = !!(
+    settings.bionicReading ||
+    settings.focusMode ||
+    settings.readingRuler ||
+    settings.beelineMode ||
+    noiseActive
+  );
+  const focusBtn = $('#btn-focus-panel');
+  if (focusBtn) {
+    focusBtn.classList.toggle('active', anyFocus);
+  }
+}
+
+function updateRulerVisibility() {
+  const ruler = $('#reading-ruler');
+  const reader = $('#reader');
+  if (!ruler) return;
+  const shouldShow = !!(settings.readingRuler && reader && !reader.hidden && !state.rendition);
+  ruler.hidden = !shouldShow;
+}
 
 function applySettings() {
   const r = document.documentElement;
@@ -139,18 +218,32 @@ function applySettings() {
   r.dataset.indent = settings.indent ? '1' : '0';
   r.dataset.hyphens = settings.hyphens ? '1' : '0';
   r.dataset.focus = settings.focusMode ? '1' : '0';
+  r.dataset.bionic = settings.bionicReading ? '1' : '0';
+  r.dataset.beeline = settings.beelineMode ? '1' : '0';
+  r.dataset.ruler = settings.readingRuler ? '1' : '0';
   r.style.setProperty('--fs', settings.fontSize + 'px');
   r.style.setProperty('--lh', String(settings.lineHeight));
+  r.style.setProperty('--ls', Number(settings.letterSpacing || 0).toFixed(2) + 'px');
   r.style.setProperty('--maxw', String(settings.maxWidth));
   r.style.setProperty('--reader-font', getFontFamily(settings.fontFamily));
   r.style.setProperty('--night-opacity', String(settings.nightFilter / 100));
   const m = $('#meta-theme');
   if (m) m.setAttribute('content', THEME_COLORS[settings.theme] || '#0a0a0c');
+  updateRulerVisibility();
+  updateFocusToolbarBadges();
 }
 
-const saveSettings = debounce(() => DB.put('kv', settings, 'settings').catch(() => {}), 300);
+const persistSettingsToDB = debounce(() => DB.put('kv', settings, 'settings').catch(() => {}), 300);
+function saveSettings() {
+  settings.updatedAt = Date.now();
+  try {
+    if (window.localStorage) window.localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(settings));
+  } catch { /* ignore */ }
+  persistSettingsToDB();
+}
 
 async function loadSettings() {
+  const local = readLocalSettings();
   try {
     const s = await DB.get('kv', 'settings');
     if (s && typeof s === 'object') {
@@ -159,9 +252,22 @@ async function loadSettings() {
         s.epubFlow = 'scrolled';
         s.epubTouchMigrated = true;
       }
-      settings = { ...DEFAULT_SETTINGS, ...s };
+      const localTs = (local && Number(local.updatedAt)) || 0;
+      const dbTs = Number(s.updatedAt) || 0;
+      if (local && localTs >= dbTs) {
+        settings = { ...DEFAULT_SETTINGS, ...s, ...local };
+      } else {
+        settings = { ...DEFAULT_SETTINGS, ...s };
+      }
+    } else if (local) {
+      settings = { ...DEFAULT_SETTINGS, ...local };
     }
-  } catch { /* ignore */ }
+  } catch {
+    if (local) settings = { ...DEFAULT_SETTINGS, ...local };
+  }
+  if (settings.noiseMode && settings.noiseMode !== 'off') {
+    lastActiveNoiseMode = settings.noiseMode;
+  }
 }
 
 /* ---------- Генерация обложек (LRU Cache) ---------- */
@@ -837,8 +943,14 @@ function stopStatsTracking() {
 
 const showReader = (show) => {
   $('#reader').hidden = !show;
-  if (show) setBars(true);
-  else stopAllActions();
+  if (show) {
+    setBars(true);
+    updateRulerVisibility();
+    updateFocusToolbarBadges();
+  } else {
+    stopAllActions();
+    updateRulerVisibility();
+  }
 };
 const setBars = (v) => {
   state.barsVisible = v;
@@ -851,7 +963,10 @@ const setReaderMeta = (t, c) => {
 
 function setPercent(p) {
   p = Math.max(0, Math.min(1, Number.isFinite(p) ? p : 0));
-  $('#progress-fill').style.width = (p * 100).toFixed(2) + '%';
+  const w = (p * 100).toFixed(2) + '%';
+  $('#progress-fill').style.width = w;
+  const topFill = $('#top-progress-fill');
+  if (topFill) topFill.style.width = w;
   $('#rt-percent').textContent = Math.round(p * 100) + '%';
 }
 
@@ -1075,7 +1190,14 @@ function applyEpubTheme() {
   try {
     rd.themes.register(name, {
       html: { background: bg + ' !important' },
-      body: { background: bg + ' !important', color: text + ' !important', 'font-family': family + ' !important', padding: '0 8px !important', margin: '0 !important' },
+      body: {
+        background: bg + ' !important',
+        color: text + ' !important',
+        'font-family': family + ' !important',
+        'letter-spacing': Number(settings.letterSpacing || 0).toFixed(2) + 'px !important',
+        padding: '0 8px !important',
+        margin: '0 !important'
+      },
       p: { color: text + ' !important', 'text-align': settings.justify ? 'justify !important' : 'left !important', 'text-indent': settings.indent ? '1.4em !important' : '0 !important' },
       a: { color: accent + ' !important' },
       img: { 'max-width': '100% !important', height: 'auto !important' },
@@ -1084,6 +1206,7 @@ function applyEpubTheme() {
     rd.themes.select(name);
     rd.themes.fontSize(settings.fontSize + 'px');
     rd.themes.override('line-height', String(settings.lineHeight));
+    rd.themes.override('letter-spacing', Number(settings.letterSpacing || 0).toFixed(2) + 'px');
     rd.themes.override('font-family', family);
   } catch { /* ignore */ }
 }
@@ -1102,6 +1225,23 @@ function openCustom(book, prog) {
   renderChapter(Math.max(0, Math.min((prog && prog.chapter) || 0, state.chapters.length - 1)), (prog && prog.ratio) || 0);
 }
 
+function applyChapterEnhancements() {
+  const inner = $('#reader-inner');
+  if (!inner || !state.chapters || state.rendition) return;
+  applyReadingEnhancements(inner, {
+    bionic: !!settings.bionicReading,
+    bionicStrength: settings.bionicStrength || 'medium',
+    beeline: !!settings.beelineMode,
+    theme: settings.theme
+  });
+}
+
+const scheduleBeeLineRefresh = debounce(() => {
+  if (!settings.beelineMode || !state.current || state.rendition) return;
+  const inner = $('#reader-inner');
+  if (inner) refreshBeeLineColors(inner, settings.theme);
+}, 100);
+
 function renderChapter(idx, ratio) {
   const chapters = state.chapters;
   if (!chapters || !chapters.length) return;
@@ -1111,11 +1251,13 @@ function renderChapter(idx, ratio) {
 
   revokeActiveAssetUrls();
   lastFocusedPara = null;
+  focusBlockIndex = -1;
 
   const ch = chapters[idx];
   const inner = $('#reader-inner');
   inner.innerHTML = '<div class="chapter-head"><h2>' + escHTML(ch.title || '') + '</h2><div class="rule"><span>◆</span></div></div>' + (ch.html || '');
-  cachedParagraphs = [...inner.querySelectorAll('p')];
+  applyChapterEnhancements();
+  cachedParagraphs = [...inner.querySelectorAll('p, li, blockquote')];
   state.chapterWords = countWords(htmlToText(ch.html));
   resolveChapterAssets(inner);
 
@@ -1124,7 +1266,9 @@ function renderChapter(idx, ratio) {
   requestAnimationFrame(() => {
     body.scrollTop = Math.max(0, ratio) * Math.max(0, body.scrollHeight - body.clientHeight);
     updateCustomProgress(true);
+    if (settings.beelineMode) refreshBeeLineColors(inner, settings.theme);
     updateFocus();
+    updateRulerVisibility();
   });
 
   setReaderMeta(state.current.title, ch.title || '');
@@ -1651,17 +1795,48 @@ function speakText(text) {
 function stopAllActions() {
   stopAutoScroll();
   stopRSVP();
+  noiseController.stop();
+  updateFocusToolbarBadges();
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   state.isSpeaking = false;
   $('#btn-tts').classList.remove('active');
   hideTermPill();
 }
 
-/* ---------- Focus Mode (O(visible) без DOM re-query) ---------- */
-function updateFocus() {
+/* ---------- Focus Mode (Hover + Keyboard ↑/↓ + Scroll) ---------- */
+let focusBlockIndex = -1;
+let focusManualLockUntil = 0;
+
+function setFocusedParagraph(el, scrollIntoView = false) {
+  if (!el) return;
+  if (lastFocusedPara && lastFocusedPara !== el) {
+    lastFocusedPara.classList.remove('focused');
+  }
+  el.classList.add('focused');
+  lastFocusedPara = el;
+  focusBlockIndex = cachedParagraphs.indexOf(el);
+  if (scrollIntoView) {
+    focusManualLockUntil = Date.now() + 650;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function moveParagraphFocus(delta) {
+  if (!cachedParagraphs.length) return;
+  let nextIdx = focusBlockIndex;
+  if (nextIdx < 0) {
+    updateFocus(true);
+    nextIdx = focusBlockIndex >= 0 ? focusBlockIndex : 0;
+  }
+  nextIdx = Math.max(0, Math.min(cachedParagraphs.length - 1, nextIdx + delta));
+  setFocusedParagraph(cachedParagraphs[nextIdx], true);
+}
+
+function updateFocus(force = false) {
   if (!settings.focusMode || !cachedParagraphs.length) return;
+  if (!force && Date.now() < focusManualLockUntil) return;
   const vh = window.innerHeight;
-  const mid = vh / 2;
+  const mid = vh * 0.46;
   let best = null;
   let bestDist = Infinity;
   for (let i = 0; i < cachedParagraphs.length; i++) {
@@ -1675,10 +1850,9 @@ function updateFocus() {
       best = p;
     }
   }
-  if (best !== lastFocusedPara) {
-    if (lastFocusedPara) lastFocusedPara.classList.remove('focused');
-    if (best) best.classList.add('focused');
-    lastFocusedPara = best;
+  if (!best && cachedParagraphs.length) best = cachedParagraphs[0];
+  if (best && best !== lastFocusedPara) {
+    setFocusedParagraph(best, false);
   }
 }
 
@@ -1747,22 +1921,303 @@ function hideTermPill() {
   state.selection = '';
 }
 
+/* ---------- Быстрая вставка текста и Демо-текст ---------- */
+async function importTextAsBook(rawTitle, rawText, openNow = true) {
+  const text = String(rawText || '').trim();
+  if (!text) return null;
+  const firstLine = text.split(/\n+/)[0].replace(/^#+\s*/, '').trim().slice(0, 64);
+  const title = String(rawTitle || '').trim() || firstLine || 'Без названия';
+  const id = uid();
+  const isMarkdown = /^#{1,3}\s|\*\*[^*]+\*\*/m.test(text);
+  const parsed = isMarkdown ? parseMarkdownBook(text, title) : parsePlain(text, title);
+  const wordsCount = parsed.chapters.reduce((acc, ch) => acc + countWords(htmlToText(ch.html)), 0);
+  const meta = {
+    id,
+    title: parsed.title || title,
+    author: rawTitle === DEMO_ARTICLE.title ? DEMO_ARTICLE.author : 'Вставленный текст',
+    format: isMarkdown ? 'md' : 'txt',
+    cover: generateCover(parsed.title || title, rawTitle === DEMO_ARTICLE.title ? DEMO_ARTICLE.author : 'Заметка'),
+    addedAt: Date.now(),
+    lastReadAt: Date.now(),
+    size: new Blob([text]).size,
+    chaptersCount: parsed.chapters.length,
+    wordsCount
+  };
+  await saveBookContent(id, { chapters: parsed.chapters, notes: {}, assets: [] });
+  await DB.put('books', meta);
+  await loadLibrary();
+  if (openNow) await openBook(id);
+  return meta;
+}
+
+async function openDemoArticle() {
+  const existing = libraryCache.find((b) => b.title === DEMO_ARTICLE.title);
+  if (existing) {
+    await openBook(existing.id);
+    return;
+  }
+  await importTextAsBook(DEMO_ARTICLE.title, DEMO_ARTICLE.text, true);
+  toast('Демо-текст загружен');
+}
+
+function showPasteTextSheet() {
+  const html = `
+    <div class="field">
+      <label for="paste-title">Название (необязательно)</label>
+      <input type="text" id="paste-title" class="lib-search" style="padding:10px 12px" placeholder="Статья, конспект или глава…">
+    </div>
+    <div class="field">
+      <label for="paste-content">Текст для чтения (поддерживается Markdown)</label>
+      <textarea id="paste-content" class="paste-area" placeholder="Вставьте любой текст, статью или конспект…"></textarea>
+      <div id="paste-err" class="form-err" hidden>Вставьте текст или загрузите демо-текст перед началом чтения.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center">
+      <button type="button" class="btn-ghost" id="btn-fill-demo">Загрузить демо-текст</button>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn-ghost" data-act="cancel">Отмена</button>
+        <button type="button" class="btn-ghost btn-solid" id="btn-paste-read">Читать</button>
+      </div>
+    </div>`;
+  const ov = openSheet('Вставить текст', html);
+  const B = ov._body;
+  const titleInp = B.querySelector('#paste-title');
+  const area = B.querySelector('#paste-content');
+  const errEl = B.querySelector('#paste-err');
+  area.focus();
+
+  area.addEventListener('input', () => {
+    if (area.value.trim()) errEl.hidden = true;
+  });
+
+  B.querySelector('#btn-fill-demo').addEventListener('click', () => {
+    titleInp.value = DEMO_ARTICLE.title;
+    area.value = DEMO_ARTICLE.text;
+    errEl.hidden = true;
+    toast('Демо-текст вставлен');
+  });
+
+  B.querySelector('[data-act="cancel"]').addEventListener('click', closeSheet);
+
+  B.querySelector('#btn-paste-read').addEventListener('click', async () => {
+    const val = area.value.trim();
+    if (!val) {
+      errEl.hidden = false;
+      area.focus();
+      return;
+    }
+    closeSheet();
+    await importTextAsBook(titleInp.value.trim(), val, true);
+  });
+}
+
+/* ---------- Панель Концентрации (СДВГ / Глубокое чтение) ---------- */
+function showFocusPanel() {
+  const liveNoise = noiseController.getState().mode;
+  const volPct = Math.round((settings.noiseVolume ?? 0.25) * 100);
+  const html = `
+    <div class="focus-presets">
+      <button type="button" class="btn-ghost btn-solid" id="btn-preset-adhd">СДВГ-фокус</button>
+      <button type="button" class="btn-ghost" id="btn-preset-clear">Сбросить режимы</button>
+    </div>
+
+    <div class="focus-row">
+      <div class="focus-info">
+        <div class="focus-name">Бионическое чтение</div>
+        <div class="focus-desc">Выделяет первые 40–50% букв каждого слова для быстрых фиксаций взгляда</div>
+      </div>
+      <button type="button" class="toggle-switch" data-toggle="bionicReading" aria-label="Бионическое чтение" aria-pressed="${settings.bionicReading ? 'true' : 'false'}"></button>
+    </div>
+    <div class="focus-sub" id="bionic-strength-wrap" ${settings.bionicReading ? '' : 'hidden'}>
+      <div class="seg" data-focus-seg="bionicStrength">
+        <button type="button" data-val="light" class="${settings.bionicStrength === 'light' ? 'on' : ''}">Мягко</button>
+        <button type="button" data-val="medium" class="${settings.bionicStrength === 'medium' ? 'on' : ''}">Стандарт</button>
+        <button type="button" data-val="strong" class="${settings.bionicStrength === 'strong' ? 'on' : ''}">Сильно</button>
+      </div>
+    </div>
+
+    <div class="focus-row">
+      <div class="focus-info">
+        <div class="focus-name">Фокус на абзаце</div>
+        <div class="focus-desc">Приглушает остальные абзацы. Переключение курсором или стрелками ↑ / ↓</div>
+      </div>
+      <button type="button" class="toggle-switch" data-toggle="focusMode" aria-label="Фокус на абзаце" aria-pressed="${settings.focusMode ? 'true' : 'false'}"></button>
+    </div>
+
+    <div class="focus-row">
+      <div class="focus-info">
+        <div class="focus-name">Линейка чтения</div>
+        <div class="focus-desc">Светлая полоса высотой в 2 строки следует за курсором и затемняет фон</div>
+      </div>
+      <button type="button" class="toggle-switch" data-toggle="readingRuler" aria-label="Линейка чтения" aria-pressed="${settings.readingRuler ? 'true' : 'false'}"></button>
+    </div>
+
+    <div class="focus-row">
+      <div class="focus-info">
+        <div class="focus-name">Цветовой градиент строк (BeeLine)</div>
+        <div class="focus-desc">Плавный переход оттенка связывает конец строки с началом следующей</div>
+      </div>
+      <button type="button" class="toggle-switch" data-toggle="beelineMode" aria-label="Цветовой градиент строк BeeLine" aria-pressed="${settings.beelineMode ? 'true' : 'false'}"></button>
+    </div>
+
+    <div class="focus-row">
+      <div class="focus-info">
+        <div class="focus-name">Дзен-скрытие панелей</div>
+        <div class="focus-desc">Скрывает панели при прокрутке и показывает при наведении на верхний край</div>
+      </div>
+      <button type="button" class="toggle-switch" data-toggle="zenAutoHide" aria-label="Дзен-скрытие панелей" aria-pressed="${settings.zenAutoHide ? 'true' : 'false'}"></button>
+    </div>
+
+    <div class="field" style="margin-top:16px">
+      <label>Фоновый шум (Web Audio)</label>
+      <div class="seg" data-focus-seg="noiseMode">
+        <button type="button" data-val="off" class="${liveNoise === 'off' ? 'on' : ''}">Выкл</button>
+        <button type="button" data-val="white" class="${liveNoise === 'white' ? 'on' : ''}">Белый</button>
+        <button type="button" data-val="pink" class="${liveNoise === 'pink' ? 'on' : ''}">Розовый</button>
+        <button type="button" data-val="brown" class="${liveNoise === 'brown' ? 'on' : ''}">Коричневый</button>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:6px">
+      <label for="noise-vol">Громкость шума: <span id="noise-vol-val">${volPct}</span>%</label>
+      <input type="range" id="noise-vol" min="0" max="100" step="1" value="${volPct}">
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px">
+      <button type="button" class="btn-ghost" id="btn-goto-typo">Шрифты и типографика</button>
+    </div>`;
+
+  const ov = openSheet('Концентрация', html);
+  const B = ov._body;
+
+  const syncButtons = () => {
+    B.querySelectorAll('[data-toggle]').forEach((btn) => {
+      const k = btn.dataset.toggle;
+      btn.setAttribute('aria-pressed', settings[k] ? 'true' : 'false');
+    });
+    const strWrap = B.querySelector('#bionic-strength-wrap');
+    if (strWrap) strWrap.hidden = !settings.bionicReading;
+    B.querySelectorAll('[data-focus-seg="bionicStrength"] button').forEach((b) => {
+      b.classList.toggle('on', b.dataset.val === settings.bionicStrength);
+    });
+    const curNoise = noiseController.getState().mode;
+    B.querySelectorAll('[data-focus-seg="noiseMode"] button').forEach((b) => {
+      b.classList.toggle('on', b.dataset.val === curNoise);
+    });
+  };
+
+  B.querySelector('#btn-preset-adhd').addEventListener('click', () => {
+    settings.bionicReading = true;
+    settings.bionicStrength = 'medium';
+    settings.focusMode = true;
+    settings.fontFamily = 'lexend';
+    settings.lineHeight = 1.75;
+    settings.letterSpacing = 0.4;
+    settings.maxWidth = 62;
+    settings.justify = false;
+    applySettings();
+    saveSettings();
+    applyChapterEnhancements();
+    updateFocus(true);
+    if (state.rendition) applyEpubTheme();
+    syncButtons();
+    toast('Активирован СДВГ-фокус (Lexend + Бионика + Фокус)');
+  });
+
+  B.querySelector('#btn-preset-clear').addEventListener('click', () => {
+    settings.bionicReading = false;
+    settings.focusMode = false;
+    settings.readingRuler = false;
+    settings.beelineMode = false;
+    settings.noiseMode = 'off';
+    noiseController.stop();
+    applySettings();
+    saveSettings();
+    applyChapterEnhancements();
+    syncButtons();
+    toast('Режимы концентрации выключены');
+  });
+
+  B.querySelectorAll('[data-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.toggle;
+      settings[key] = !settings[key];
+      if (key === 'readingRuler' && settings.readingRuler) {
+        document.documentElement.style.setProperty('--ruler-y', '42vh');
+      }
+      applySettings();
+      saveSettings();
+      if (key === 'bionicReading' || key === 'beelineMode') {
+        applyChapterEnhancements();
+      }
+      if (key === 'focusMode') {
+        if (settings.focusMode) updateFocus(true);
+        else if (lastFocusedPara) {
+          lastFocusedPara.classList.remove('focused');
+          lastFocusedPara = null;
+        }
+      }
+      syncButtons();
+    });
+  });
+
+  B.querySelectorAll('[data-focus-seg]').forEach((seg) => {
+    const key = seg.dataset.focusSeg;
+    seg.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-val]');
+      if (!b) return;
+      const val = b.dataset.val;
+      if (key === 'bionicStrength') {
+        settings.bionicStrength = val;
+        saveSettings();
+        applyChapterEnhancements();
+      } else if (key === 'noiseMode') {
+        settings.noiseMode = val;
+        if (val !== 'off') lastActiveNoiseMode = val;
+        noiseController.setVolume(settings.noiseVolume ?? 0.25);
+        const ok = noiseController.setMode(val);
+        if (!ok && val !== 'off') toast('Web Audio недоступен в браузере');
+        saveSettings();
+        updateFocusToolbarBadges();
+      }
+      syncButtons();
+    });
+  });
+
+  const volEl = B.querySelector('#noise-vol');
+  if (volEl) {
+    volEl.addEventListener('input', () => {
+      const pct = parseInt(volEl.value, 10) || 0;
+      settings.noiseVolume = pct / 100;
+      B.querySelector('#noise-vol-val').textContent = String(pct);
+      noiseController.setVolume(settings.noiseVolume);
+      saveSettings();
+    });
+  }
+
+  B.querySelector('#btn-goto-typo').addEventListener('click', () => {
+    showReaderSettings();
+  });
+}
+
 /* ---------- Настройки (Общие и Читалка) ---------- */
 function buildTypographyFields(prefix = '') {
   return `
   <div class="field"><label>Режим чтения EPUB</label><div class="seg" data-seg="epubFlow"><button data-val="scrolled" class="${settings.epubFlow === 'scrolled' ? 'on' : ''}">Свиток (как FB2)</button><button data-val="paginated" class="${settings.epubFlow === 'paginated' ? 'on' : ''}">Страницы</button></div></div>
-  <div class="field"><label>Тема оформления</label><div class="seg" data-seg="theme">${THEMES.map((t) => `<button data-val="${t}" class="${settings.theme === t ? 'on' : ''}">${THEME_NAMES[t]}</button>`).join('')}</div></div>
+  <div class="field"><label>Тема оформления (без резкого белого)</label><div class="seg" data-seg="theme">${THEMES.map((t) => `<button data-val="${t}" class="${settings.theme === t ? 'on' : ''}">${THEME_NAMES[t]}</button>`).join('')}</div></div>
+  <div class="field"><label>Гарнитура (вкл. шрифты для концентрации)</label><div class="font-grid" data-font-grid>${Object.entries(FONTS).map(([k, f]) => `<button type="button" class="font-btn ${settings.fontFamily === k ? 'on' : ''}" data-val="${k}"><span style="font-family:${f.family}">Аа</span><small>${f.name}</small><span class="font-tag">${f.tag}</span></button>`).join('')}</div></div>
   <div class="field"><label for="${prefix}fs">Размер шрифта: <span id="${prefix}fs-val">${settings.fontSize}</span>px</label><input type="range" id="${prefix}fs" min="14" max="32" value="${settings.fontSize}"></div>
   <div class="field"><label for="${prefix}lh">Межстрочный интервал: <span id="${prefix}lh-val">${settings.lineHeight.toFixed(2)}</span></label><input type="range" id="${prefix}lh" min="1.25" max="2.3" step="0.05" value="${settings.lineHeight}"></div>
-  <div class="field"><label for="${prefix}mw">Ширина колонки: <span id="${prefix}mw-val">${settings.maxWidth}</span>ch</label><input type="range" id="${prefix}mw" min="40" max="110" value="${settings.maxWidth}"></div>
-  <div class="field"><label>Гарнитура</label><div class="font-grid" data-font-grid>${Object.entries(FONTS).map(([k, f]) => `<button class="font-btn ${settings.fontFamily === k ? 'on' : ''}" data-val="${k}"><span style="font-family:${f.family}">Aa</span><small>${f.name}</small></button>`).join('')}</div></div>
+  <div class="field"><label for="${prefix}ls">Межбуквенный интервал (трекинг): <span id="${prefix}ls-val">${Number(settings.letterSpacing || 0).toFixed(1)}</span>px</label><input type="range" id="${prefix}ls" min="0" max="3" step="0.2" value="${Number(settings.letterSpacing || 0)}"></div>
+  <div class="field"><label for="${prefix}mw">Ширина колонки: <span id="${prefix}mw-val">${settings.maxWidth}</span>ch</label><input type="range" id="${prefix}mw" min="45" max="95" value="${settings.maxWidth}"></div>
   <div class="field"><label>Вёрстка абзаца</label>
     <div class="seg" data-seg="justify" style="margin-bottom:6px"><button data-val="1" class="${settings.justify ? 'on' : ''}">По ширине</button><button data-val="0" class="${!settings.justify ? 'on' : ''}">По левому</button></div>
     <div class="seg" data-seg="indent" style="margin-bottom:6px"><button data-val="1" class="${settings.indent ? 'on' : ''}">Красная строка</button><button data-val="0" class="${!settings.indent ? 'on' : ''}">Без отступа</button></div>
     <div class="seg" data-seg="hyphens"><button data-val="1" class="${settings.hyphens ? 'on' : ''}">Переносы вкл</button><button data-val="0" class="${!settings.hyphens ? 'on' : ''}">Переносы выкл</button></div>
   </div>
   <div class="field"><label for="${prefix}nf">Ночной фильтр (тёплый): <span id="${prefix}nf-val">${settings.nightFilter}</span>%</label><input type="range" id="${prefix}nf" min="0" max="65" value="${settings.nightFilter}"></div>
-  <div class="field"><label>Режим фокуса на абзаце</label><div class="seg" data-seg="focus"><button data-val="0" class="${!settings.focusMode ? 'on' : ''}">Выкл</button><button data-val="1" class="${settings.focusMode ? 'on' : ''}">Вкл</button></div></div>`;
+  <div class="field"><label>Концентрация</label>
+    <div class="seg" data-seg="bionic" style="margin-bottom:6px"><button data-val="0" class="${!settings.bionicReading ? 'on' : ''}">Бионика выкл</button><button data-val="1" class="${settings.bionicReading ? 'on' : ''}">Бионическое чтение</button></div>
+    <div class="seg" data-seg="focus" style="margin-bottom:6px"><button data-val="0" class="${!settings.focusMode ? 'on' : ''}">Фокус выкл</button><button data-val="1" class="${settings.focusMode ? 'on' : ''}">Фокус на абзаце</button></div>
+    <div class="seg" data-seg="beeline"><button data-val="0" class="${!settings.beelineMode ? 'on' : ''}">BeeLine выкл</button><button data-val="1" class="${settings.beelineMode ? 'on' : ''}">Градиент BeeLine</button></div>
+  </div>`;
 }
 
 function bindTypographyControls(B, prefix = '') {
@@ -1778,6 +2233,8 @@ function bindTypographyControls(B, prefix = '') {
       else if (key === 'indent') settings.indent = b.dataset.val === '1';
       else if (key === 'hyphens') settings.hyphens = b.dataset.val === '1';
       else if (key === 'focus') settings.focusMode = b.dataset.val === '1';
+      else if (key === 'bionic') settings.bionicReading = b.dataset.val === '1';
+      else if (key === 'beeline') settings.beelineMode = b.dataset.val === '1';
       else if (key === 'epubFlow') {
         const prevFlow = settings.epubFlow;
         settings.epubFlow = b.dataset.val;
@@ -1792,7 +2249,9 @@ function bindTypographyControls(B, prefix = '') {
       applySettings();
       saveSettings();
       if (state.rendition) applyEpubTheme();
-      if (key === 'focus') updateFocus();
+      if (key === 'bionic' || key === 'beeline') applyChapterEnhancements();
+      else if (key === 'theme' || key === 'justify' || key === 'indent' || key === 'hyphens') scheduleBeeLineRefresh();
+      if (key === 'focus') updateFocus(true);
     });
   });
 
@@ -1807,10 +2266,11 @@ function bindTypographyControls(B, prefix = '') {
       applySettings();
       saveSettings();
       if (state.rendition) applyEpubTheme();
+      scheduleBeeLineRefresh();
     });
   }
 
-  ['fs', 'lh', 'mw', 'nf', 'as', 'ttsr', 'rsvp-r'].forEach((id) => {
+  ['fs', 'lh', 'ls', 'mw', 'nf', 'as', 'ttsr', 'rsvp-r'].forEach((id) => {
     const el = B.querySelector('#' + prefix + id);
     if (!el) return;
     el.addEventListener('input', () => {
@@ -1821,6 +2281,9 @@ function bindTypographyControls(B, prefix = '') {
       } else if (id === 'lh') {
         settings.lineHeight = v;
         B.querySelector('#' + prefix + 'lh-val').textContent = v.toFixed(2);
+      } else if (id === 'ls') {
+        settings.letterSpacing = v;
+        B.querySelector('#' + prefix + 'ls-val').textContent = v.toFixed(1);
       } else if (id === 'mw') {
         settings.maxWidth = v;
         B.querySelector('#' + prefix + 'mw-val').textContent = v;
@@ -1837,7 +2300,8 @@ function bindTypographyControls(B, prefix = '') {
       }
       applySettings();
       saveSettings();
-      if (state.rendition && (id === 'fs' || id === 'lh')) applyEpubTheme();
+      if (state.rendition && (id === 'fs' || id === 'lh' || id === 'ls')) applyEpubTheme();
+      if (id === 'fs' || id === 'lh' || id === 'ls' || id === 'mw') scheduleBeeLineRefresh();
     });
   });
 }
@@ -1859,8 +2323,10 @@ function showSettings() {
   B.querySelector('#btn-reset-settings').addEventListener('click', async () => {
     if (await confirmDialog('Сбросить все настройки к значениям по умолчанию?', 'Сбросить')) {
       settings = { ...DEFAULT_SETTINGS };
+      noiseController.stop();
       applySettings();
       saveSettings();
+      applyChapterEnhancements();
       closeSheet();
       toast('Настройки сброшены');
     }
@@ -1868,8 +2334,13 @@ function showSettings() {
 }
 
 function showReaderSettings() {
-  const ov = openSheet('Чтение и Шрифт', buildTypographyFields('r-'));
+  const html = buildTypographyFields('r-') +
+    `<div style="display:flex;justify-content:flex-end;margin-top:12px"><button type="button" class="btn-ghost" id="btn-goto-focus">Панель концентрации (линейка, шум)</button></div>`;
+  const ov = openSheet('Чтение и Шрифт', html);
   bindTypographyControls(ov._body, 'r-');
+  ov._body.querySelector('#btn-goto-focus').addEventListener('click', () => {
+    showFocusPanel();
+  });
 }
 
 /* ---------- Навигация (Главы / Закладки / Цитаты / Словарь) ---------- */
@@ -2122,9 +2593,40 @@ function bindEvents() {
     }
   });
 
+  on('#btn-paste-text', 'click', showPasteTextSheet);
+  on('#btn-paste-text-2', 'click', showPasteTextSheet);
+  on('#btn-demo-text', 'click', openDemoArticle);
+
   on('#btn-close-reader', 'click', closeReader);
   on('#btn-prev', 'click', goPrev);
   on('#btn-next', 'click', goNext);
+  on('#btn-focus-panel', 'click', showFocusPanel);
+  on('#btn-bionic-quick', 'click', () => {
+    settings.bionicReading = !settings.bionicReading;
+    applySettings();
+    saveSettings();
+    applyChapterEnhancements();
+    toast(settings.bionicReading ? 'Бионическое чтение вкл' : 'Бионическое чтение выкл');
+  });
+  on('#btn-noise-quick', 'click', () => {
+    const cur = noiseController.getState().mode;
+    if (cur !== 'off') {
+      settings.noiseMode = 'off';
+      noiseController.stop();
+      saveSettings();
+      updateFocusToolbarBadges();
+      toast('Фоновый шум выкл');
+    } else {
+      const target = lastActiveNoiseMode || 'pink';
+      settings.noiseMode = target;
+      noiseController.setVolume(settings.noiseVolume ?? 0.25);
+      const ok = noiseController.setMode(target);
+      saveSettings();
+      updateFocusToolbarBadges();
+      const labels = { white: 'Белый шум', pink: 'Розовый шум', brown: 'Коричневый шум' };
+      toast(ok ? (labels[target] || 'Фоновый шум') + ' вкл' : 'Web Audio недоступен');
+    }
+  });
   on('#btn-toc', 'click', () => showTOC('toc'));
   on('#btn-search', 'click', showSearchSheet);
   on('#btn-bookmark', 'click', addBookmark);
@@ -2141,10 +2643,58 @@ function bindEvents() {
     else document.exitFullscreen && document.exitFullscreen().catch(() => {});
   });
 
+  let rulerRaf = 0;
+  const updateRulerY = (y) => {
+    if (!settings.readingRuler || !state.current || state.rendition) return;
+    if (!rulerRaf) {
+      rulerRaf = requestAnimationFrame(() => {
+        document.documentElement.style.setProperty('--ruler-y', Math.round(y) + 'px');
+        rulerRaf = 0;
+      });
+    }
+  };
+
+  on('#reader', 'pointermove', (e) => {
+    if (settings.zenAutoHide && state.current && !state.barsVisible && e.clientY <= 38) {
+      setBars(true);
+    }
+    updateRulerY(e.clientY);
+  }, { passive: true });
+
+  on('#reader', 'pointerdown', (e) => {
+    if (e.pointerType === 'touch') updateRulerY(e.clientY);
+  }, { passive: true });
+
+  on('#reader-inner', 'mouseover', (e) => {
+    if (!settings.focusMode) return;
+    const block = e.target.closest('p, li, blockquote');
+    if (block && block.closest('#reader-inner') && block !== lastFocusedPara) {
+      focusManualLockUntil = Date.now() + 300;
+      setFocusedParagraph(block, false);
+    }
+  });
+
   let scrollTicking = false;
+  let lastZenScrollTop = 0;
   on('#reader-body', 'scroll', () => {
     if (!scrollTicking) {
       requestAnimationFrame(() => {
+        const body = $('#reader-body');
+        if (body && settings.zenAutoHide && !state.isAutoScrolling && Date.now() >= focusManualLockUntil) {
+          const st = body.scrollTop;
+          const delta = st - lastZenScrollTop;
+          if (st > 72 && delta > 24 && state.barsVisible) {
+            setBars(false);
+            lastZenScrollTop = st;
+          } else if ((st < 28 || delta < -48) && !state.barsVisible) {
+            setBars(true);
+            lastZenScrollTop = st;
+          } else if (Math.abs(delta) > 24) {
+            lastZenScrollTop = st;
+          }
+        } else if (body) {
+          lastZenScrollTop = body.scrollTop;
+        }
         updateCustomProgress();
         if (settings.focusMode) updateFocus();
         scrollTicking = false;
@@ -2289,7 +2839,13 @@ function bindEvents() {
     if (!readerEl || readerEl.hidden || _currentOverlay) return;
     if (e.key === 'ArrowLeft') goPrev();
     else if (e.key === 'ArrowRight') goNext();
-    else if (e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
+    else if (settings.focusMode && !state.rendition && e.key === 'ArrowDown') {
+      e.preventDefault();
+      moveParagraphFocus(1);
+    } else if (settings.focusMode && !state.rendition && e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveParagraphFocus(-1);
+    } else if (e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
       e.preventDefault();
       pageDown();
     } else if (e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) {
@@ -2362,6 +2918,7 @@ async function init() {
       resizeBound = true;
       window.addEventListener('resize', debounce(() => {
         if (state.rendition && state.rendition.resize) state.rendition.resize();
+        scheduleBeeLineRefresh();
       }, 200));
     }
   }

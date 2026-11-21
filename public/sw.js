@@ -11,6 +11,7 @@ const PRECACHE_URLS = [
   './js/analysis.js',
   './js/db.js',
   './js/parsers.js',
+  './js/focus-tools.js',
   './js/pwa.js',
   './js/app.js',
   './vendor/jszip.min.js',

@@ -26,6 +26,18 @@ import {
   highlightQueryHTML
 } from '../public/js/analysis.js';
 
+import {
+  getBionicSplitIndex,
+  bionicizeText,
+  getBeeLinePalette,
+  interpolateHexColor,
+  computeBeeLineColor,
+  generateWhiteNoiseSamples,
+  generatePinkNoiseSamples,
+  generateBrownNoiseSamples,
+  DEMO_ARTICLE
+} from '../public/js/focus-tools.js';
+
 test('decodeBuffer handles UTF-8 BOM, UTF-16LE, and Windows-1251', () => {
   const utf8Bom = new Uint8Array([0xEF, 0xBB, 0xBF, 0xD0, 0x9F, 0xD1, 0x80, 0xD0, 0xB8, 0xD0, 0xB2, 0xD0, 0xB5, 0xD1, 0x82]);
   assert.equal(decodeBuffer(utf8Bom), 'Привет');
@@ -225,4 +237,102 @@ test('DB.open rejects cleanly on timeout and onblocked without hanging', async (
   } finally {
     globalThis.indexedDB = origIDB;
   }
+});
+
+test('getBionicSplitIndex computes 40-50% fixation length safely across word lengths and strengths', () => {
+  assert.equal(getBionicSplitIndex('', 'medium'), 0);
+  assert.equal(getBionicSplitIndex('и', 'medium'), 1);
+  assert.equal(getBionicSplitIndex('на', 'medium'), 1);
+  assert.equal(getBionicSplitIndex('мозг', 'medium'), 2);
+  assert.equal(getBionicSplitIndex('чтение', 'medium'), 3);
+  assert.equal(getBionicSplitIndex('концентрация', 'light'), 5);
+  assert.equal(getBionicSplitIndex('концентрация', 'medium'), 6);
+  assert.equal(getBionicSplitIndex('концентрация', 'strong'), 7);
+  // Never bolds the entire word for words of length >= 2
+  assert.ok(getBionicSplitIndex('да', 'strong') < 2);
+});
+
+test('bionicizeText wraps Cyrillic and Latin words while preserving punctuation and escaping HTML', () => {
+  const input = 'Привет, мир! <script>x</script> Научно-популярный тест 2026.';
+  const out = bionicizeText(input, 'medium');
+  assert.ok(out.includes('<b class="bionic-fix">При</b>вет,'));
+  assert.ok(out.includes('<b class="bionic-fix">ми</b>р!'));
+  assert.ok(out.includes('<b class="bionic-fix">Нау</b>чно-<b class="bionic-fix">попул</b>ярный'));
+  assert.ok(out.includes('2026.'));
+  assert.equal(out.includes('<script>'), false);
+  assert.ok(out.includes('&lt;'));
+});
+
+test('BeeLine color gradient maintains line-to-line continuity across alternating lines', () => {
+  const pal = getBeeLinePalette('parchment');
+  assert.equal(interpolateHexColor('#000000', '#ffffff', 0), '#000000');
+  assert.equal(interpolateHexColor('#000000', '#ffffff', 1), '#ffffff');
+
+  // Line 0 end (t=1) must match Line 1 start (t=0)
+  const line0End = computeBeeLineColor(0, 1, pal);
+  const line1Start = computeBeeLineColor(1, 0, pal);
+  assert.equal(line0End, line1Start);
+
+  // Line 1 end (t=1) must match Line 2 start (t=0)
+  const line1End = computeBeeLineColor(1, 1, pal);
+  const line2Start = computeBeeLineColor(2, 0, pal);
+  assert.equal(line1End, line2Start);
+
+  // Midpoint of any line equals palette mid color
+  assert.equal(computeBeeLineColor(0, 0.5, pal), pal.mid);
+  assert.equal(computeBeeLineColor(1, 0.5, pal), pal.mid);
+});
+
+test('procedural noise generators produce bounded, spectrally ordered white/pink/brown noise', () => {
+  // Deterministic PRNG for reproducible tests
+  let seed = 1234567;
+  const makeRng = () => {
+    let s = seed;
+    return () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+  };
+
+  const N = 4096;
+  const white = generateWhiteNoiseSamples(N, makeRng());
+  const pink = generatePinkNoiseSamples(N, makeRng());
+  const brown = generateBrownNoiseSamples(N, makeRng());
+
+  const lag1Autocorr = (arr: Float32Array) => {
+    let mean = 0;
+    for (let i = 0; i < arr.length; i++) mean += arr[i];
+    mean /= arr.length;
+    let num = 0;
+    let den = 0;
+    for (let i = 0; i < arr.length - 1; i++) {
+      const a = arr[i] - mean;
+      const b = arr[i + 1] - mean;
+      num += a * b;
+      den += a * a;
+    }
+    return den > 0 ? num / den : 0;
+  };
+
+  for (const arr of [white, pink, brown]) {
+    assert.equal(arr.length, N);
+    let maxAbs = 0;
+    for (let i = 0; i < arr.length; i++) {
+      assert.ok(Number.isFinite(arr[i]));
+      maxAbs = Math.max(maxAbs, Math.abs(arr[i]));
+    }
+    assert.ok(maxAbs > 0.05 && maxAbs <= 1.0, `Expected bounded non-zero amplitude, got ${maxAbs}`);
+  }
+
+  const acWhite = lag1Autocorr(white);
+  const acPink = lag1Autocorr(pink);
+  const acBrown = lag1Autocorr(brown);
+  assert.ok(acBrown > acPink && acPink > acWhite, `Expected brown(${acBrown}) > pink(${acPink}) > white(${acWhite})`);
+});
+
+test('DEMO_ARTICLE provides multi-paragraph Russian popular-science text', () => {
+  assert.ok(DEMO_ARTICLE.title.length > 5);
+  const paragraphs = DEMO_ARTICLE.text.split(/\n\s*\n/).filter(Boolean);
+  assert.ok(paragraphs.length >= 4, 'Demo article must have at least 4 paragraphs');
+  assert.ok(/[а-яё]/i.test(DEMO_ARTICLE.text));
 });
