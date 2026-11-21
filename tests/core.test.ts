@@ -336,3 +336,25 @@ test('DEMO_ARTICLE provides multi-paragraph Russian popular-science text', () =>
   assert.ok(paragraphs.length >= 4, 'Demo article must have at least 4 paragraphs');
   assert.ok(/[а-яё]/i.test(DEMO_ARTICLE.text));
 });
+
+test('styles.css and index.html cover responsive tiers from smartwatch to ultrawide', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const pubDir = path.resolve(process.cwd(), 'public');
+  const html = fs.readFileSync(path.join(pubDir, 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(pubDir, 'css', 'styles.css'), 'utf8');
+
+  assert.ok(html.includes('viewport-fit=cover'), 'index.html must include viewport-fit=cover');
+  for (const mq of [
+    'max-width: 299px',
+    'max-width: 374px',
+    'min-width: 375px',
+    'min-width: 600px',
+    'min-width: 1024px',
+    'min-width: 1600px',
+    'max-height: 500px'
+  ]) {
+    assert.ok(css.includes(mq), `styles.css missing responsive breakpoint: ${mq}`);
+  }
+});
+
