@@ -142,25 +142,37 @@ const DEFAULT_SETTINGS = {
   updatedAt: 0
 };
 
-const THEMES = ['abyss', 'graphite', 'parchment', 'soft', 'sepia', 'forest', 'void'];
+const THEMES = ['abyss', 'graphite', 'soft', 'parchment', 'sepia', 'forest', 'void'];
+const LIGHT_THEMES = new Set(['soft', 'parchment']);
 const THEME_NAMES = {
-  abyss: 'Бездна',
+  abyss: 'Обсидиан',
   graphite: 'Графит',
+  soft: 'Светлая',
   parchment: 'Бумага',
-  soft: 'Мягкий',
-  sepia: 'Сепия',
-  forest: 'Чаща',
+  sepia: 'Сумерки',
+  forest: 'Мрак',
   void: 'OLED'
 };
 const THEME_COLORS = {
-  abyss: '#0a0a0c',
-  graphite: '#1a1b1e',
-  parchment: '#f4ecd8',
-  soft: '#eaeaea',
-  sepia: '#1c1712',
-  forest: '#0b110e',
+  abyss: '#08090b',
+  graphite: '#14161a',
+  soft: '#f4f4f2',
+  parchment: '#f2ece0',
+  sepia: '#161311',
+  forest: '#0a0e0c',
   void: '#000000'
 };
+const THEME_SWATCHES = {
+  abyss: { bg: '#08090b', fg: '#e6e8ec' },
+  graphite: { bg: '#14161a', fg: '#d8dbe2' },
+  soft: { bg: '#f4f4f2', fg: '#141518' },
+  parchment: { bg: '#f2ece0', fg: '#231f1b' },
+  sepia: { bg: '#161311', fg: '#dcd3c6' },
+  forest: { bg: '#0a0e0c', fg: '#cdd6d0' },
+  void: { bg: '#000000', fg: '#b2b6be' }
+};
+let lastDarkTheme = 'abyss';
+let lastLightTheme = 'soft';
 
 function readLocalSettings() {
   try {
@@ -230,8 +242,22 @@ function applySettings() {
   const inner = $('#reader-inner');
   if (inner) inner.style.fontFamily = family;
   r.style.setProperty('--night-opacity', String(settings.nightFilter / 100));
+  const isLight = LIGHT_THEMES.has(settings.theme);
+  if (isLight) lastLightTheme = settings.theme;
+  else lastDarkTheme = settings.theme;
+  r.dataset.scheme = isLight ? 'light' : 'dark';
   const m = $('#meta-theme');
-  if (m) m.setAttribute('content', THEME_COLORS[settings.theme] || '#0a0a0c');
+  if (m) m.setAttribute('content', THEME_COLORS[settings.theme] || '#08090b');
+  const themeBtn = $('#btn-theme');
+  if (themeBtn) {
+    themeBtn.title = isLight ? 'Включить тёмную тему' : 'Включить светлую тему';
+    themeBtn.setAttribute('aria-label', isLight ? 'Включить тёмную тему' : 'Включить светлую тему');
+    themeBtn.innerHTML = isLight
+      ? '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+      : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/></svg>';
+  }
+  const nightBtn = $('#btn-night');
+  if (nightBtn) nightBtn.classList.toggle('active', (settings.nightFilter || 0) > 0);
   updateRulerVisibility();
   updateFocusToolbarBadges();
 }
@@ -308,40 +334,57 @@ function generateCover(title, author) {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  const g = x.createLinearGradient(0, 0, W * 0.6, H);
-  g.addColorStop(0, '#0d0d11');
-  g.addColorStop(0.5, '#15151b');
-  g.addColorStop(1, '#070709');
+  const palettes = [
+    ['#0c0d10', '#161920', '#08090b'],
+    ['#0e0f12', '#191b22', '#090a0c'],
+    ['#0d100f', '#151c19', '#080b0a'],
+    ['#110f0e', '#1c1816', '#0a0908']
+  ];
+  const pal = palettes[Math.floor(rnd() * palettes.length)];
+  const g = x.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, pal[0]);
+  g.addColorStop(0.55, pal[1]);
+  g.addColorStop(1, pal[2]);
   x.fillStyle = g;
   x.fillRect(0, 0, W, H);
-  x.strokeStyle = 'rgba(197,160,89,.32)';
+
+  // Subtle architectural spine & hairline grid
+  const spine = x.createLinearGradient(0, 0, 28, 0);
+  spine.addColorStop(0, 'rgba(0,0,0,0.45)');
+  spine.addColorStop(0.6, 'rgba(255,255,255,0.03)');
+  spine.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = spine;
+  x.fillRect(0, 0, 28, H);
+
+  x.strokeStyle = 'rgba(255,255,255,0.08)';
   x.lineWidth = 1;
-  const cx = W / 2;
-  const cy = H * 0.29;
-  const R = 42 + rnd() * 10;
   x.beginPath();
-  x.arc(cx, cy, R, 0, Math.PI * 2);
+  x.moveTo(32, 36);
+  x.lineTo(W - 32, 36);
+  x.moveTo(32, H - 96);
+  x.lineTo(W - 32, H - 96);
+  x.stroke();
+
+  // Minimal geometric monolith emblem
+  const ex = W - 56;
+  const ey = 66;
+  x.strokeStyle = 'rgba(230,232,236,0.22)';
+  x.beginPath();
+  x.arc(ex, ey, 14, 0, Math.PI * 2);
   x.stroke();
   x.beginPath();
-  for (let i = 0; i < 3; i++) {
-    const a = -Math.PI / 2 + i * ((2 * Math.PI) / 3);
-    const px = cx + Math.cos(a) * R * 0.85;
-    const py = cy + Math.sin(a) * R * 0.85;
-    if (i) x.lineTo(px, py);
-    else x.moveTo(px, py);
-  }
-  x.closePath();
+  x.moveTo(ex - 20, ey);
+  x.lineTo(ex + 20, ey);
   x.stroke();
-  x.strokeStyle = 'rgba(197,160,89,.22)';
-  x.strokeRect(16.5, 16.5, W - 33, H - 33);
-  x.textAlign = 'center';
-  x.fillStyle = '#c8c8d0';
-  x.font = '600 24px Georgia,serif';
-  wrapCanvasText(x, (title || 'Без названия').toUpperCase(), W / 2, H * 0.6, W - 72, 30, 4);
-  x.fillStyle = 'rgba(197,160,89,.72)';
-  x.font = 'italic 14px Georgia,serif';
-  wrapCanvasText(x, author || '—', W / 2, H - 64, W - 80, 18, 2);
-  const dataUrl = c.toDataURL('image/jpeg', 0.84);
+
+  x.textAlign = 'left';
+  x.fillStyle = '#e6e8ec';
+  x.font = '500 28px Georgia,serif';
+  wrapCanvasText(x, title || 'Без названия', 32, H * 0.48, W - 64, 36, 5);
+  x.fillStyle = 'rgba(230,232,236,0.52)';
+  x.font = '400 13px system-ui,sans-serif';
+  wrapCanvasText(x, author || 'Личный архив', 32, H - 56, W - 64, 18, 2);
+  const dataUrl = c.toDataURL('image/jpeg', 0.86);
   c.width = 0;
   c.height = 0;
   return dataUrl;
@@ -588,18 +631,19 @@ function renderLibrary() {
     card.className = 'book-card';
     card.dataset.id = b.id;
     const safeTitle = escHTML(b.title || 'Без названия');
+    const safeFmt = escHTML((b.format || 'txt').toUpperCase());
+    const safeAuthor = escHTML(b.author || 'Без автора');
     card.innerHTML = `
       <button type="button" class="book-open-btn" aria-label="Открыть «${safeTitle}»">
         <div class="book-cover">
           <img src="${getCoverFor(b)}" loading="lazy" decoding="async" alt="">
-          <span class="book-badge">${escHTML((b.format || 'txt').toUpperCase())}</span>
         </div>
         <div class="book-title">${safeTitle}</div>
-        <div class="book-author">${escHTML(b.author || 'Неизвестен')}</div>
+        <div class="book-meta"><span class="book-author">${safeAuthor}</span><span aria-hidden="true">·</span><span>${safeFmt}</span>${pct > 0 ? `<span aria-hidden="true">·</span><span>${pct}%</span>` : ''}</div>
         <div class="book-bar" title="Прочитано: ${pct}%"><i style="width:${pct}%"></i></div>
       </button>
       <button type="button" class="book-del" title="Меню книги" aria-label="Меню книги «${safeTitle}»">
-        <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
       </button>`;
     frag.appendChild(card);
   }
@@ -1311,7 +1355,7 @@ function renderChapter(idx, ratio) {
 
   const ch = chapters[idx];
   const inner = $('#reader-inner');
-  inner.innerHTML = '<div class="chapter-head"><h2>' + escHTML(ch.title || '') + '</h2><div class="rule"><span>◆</span></div></div>' + (ch.html || '');
+  inner.innerHTML = '<div class="chapter-head"><h2>' + escHTML(ch.title || '') + '</h2><div class="rule"></div></div>' + (ch.html || '');
   applyChapterEnhancements();
   cachedParagraphs = [...inner.querySelectorAll('p, li, blockquote')];
   state.chapterWords = countWords(htmlToText(ch.html));
@@ -2257,7 +2301,10 @@ function showFocusPanel() {
 function buildTypographyFields(prefix = '') {
   return `
   <div class="field"><label>Режим чтения EPUB</label><div class="seg" data-seg="epubFlow"><button data-val="scrolled" class="${settings.epubFlow === 'scrolled' ? 'on' : ''}">Свиток (как FB2)</button><button data-val="paginated" class="${settings.epubFlow === 'paginated' ? 'on' : ''}">Страницы</button></div></div>
-  <div class="field"><label>Тема оформления (без резкого белого)</label><div class="seg" data-seg="theme">${THEMES.map((t) => `<button data-val="${t}" class="${settings.theme === t ? 'on' : ''}">${THEME_NAMES[t]}</button>`).join('')}</div></div>
+  <div class="field"><label>Тема оформления (тёмные и светлые)</label><div class="theme-grid" data-seg="theme">${THEMES.map((t) => {
+    const sw = THEME_SWATCHES[t] || THEME_SWATCHES.abyss;
+    return `<button type="button" data-val="${t}" class="theme-chip ${settings.theme === t ? 'on' : ''}"><span class="theme-dot" style="background:${sw.bg};box-shadow:inset 0 0 0 4px ${sw.bg},inset 0 0 0 8px ${sw.fg}"></span><span>${THEME_NAMES[t]}</span></button>`;
+  }).join('')}</div></div>
   <div class="field"><label>Гарнитура (вкл. шрифты для концентрации)</label><div class="font-grid" data-font-grid>${Object.entries(FONTS).map(([k, f]) => `<button type="button" class="font-btn ${settings.fontFamily === k ? 'on' : ''}" data-val="${k}"><span style="font-family:${f.family}">Аа</span><small>${f.name}</small><span class="font-tag">${f.tag}</span></button>`).join('')}</div></div>
   <div class="field"><label for="${prefix}fs">Размер шрифта: <span id="${prefix}fs-val">${settings.fontSize}</span>px</label><input type="range" id="${prefix}fs" min="14" max="32" value="${settings.fontSize}"></div>
   <div class="field"><label for="${prefix}lh">Межстрочный интервал: <span id="${prefix}lh-val">${settings.lineHeight.toFixed(2)}</span></label><input type="range" id="${prefix}lh" min="1.25" max="2.3" step="0.05" value="${settings.lineHeight}"></div>
@@ -2602,8 +2649,8 @@ function bindEvents() {
     toast(cur ? 'Ночной фильтр вкл' : 'Ночной фильтр выкл');
   });
   on('#btn-theme', 'click', () => {
-    const i = THEMES.indexOf(settings.theme);
-    settings.theme = THEMES[(i + 1) % THEMES.length];
+    const isLight = LIGHT_THEMES.has(settings.theme);
+    settings.theme = isLight ? (lastDarkTheme || 'abyss') : (lastLightTheme || 'soft');
     applySettings();
     saveSettings();
     if (state.rendition) applyEpubTheme();
