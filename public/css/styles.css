@@ -977,3 +977,53 @@ html[data-theme=abyss] textarea{
 .daily-goal-track i{display:block;height:100%;background:var(--accent);border-radius:inherit}
 .stat-card--goal{grid-column:span 2}
 @media(max-width:420px){#reading-session-chip{bottom:calc(62px + env(safe-area-inset-bottom));gap:7px;padding:8px 10px}.session-caption{display:none}.ritual-duration button{font-size:11px;padding-inline:5px}.stat-card--goal{grid-column:span 2}}
+
+
+/* Theme changes must not alter the library's layout geometry. */
+html[data-theme=abyss] .hero{
+  max-width:none;
+  margin:0;
+  align-items:center;
+  text-align:center;
+  padding:calc(96px + env(safe-area-inset-top)) 24px 30px;
+  gap:12px;
+}
+html[data-theme=abyss] .hero .brand{
+  font-family:var(--serif);
+  font-size:clamp(28px,5.2vw,44px);
+  font-weight:400;
+  letter-spacing:.26em;
+  line-height:1.1;
+  text-indent:.26em;
+}
+html[data-theme=abyss] .hero-sub{font-size:14px}
+html[data-theme=abyss] .hero .rule{
+  width:100%;
+  max-width:220px;
+  margin-top:8px;
+}
+html[data-theme=abyss] .lib-controls{
+  max-width:1200px;
+  margin:0 auto 28px;
+  gap:12px;
+}
+html[data-theme=abyss] .grid{
+  max-width:1200px;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:28px 20px;
+  padding:0 24px;
+}
+@media (max-width:767px){
+  html[data-theme=abyss] .hero{
+    padding:calc(76px + env(safe-area-inset-top)) 20px 24px;
+    gap:12px;
+  }
+  html[data-theme=abyss] .hero .brand{font-size:clamp(28px,5.2vw,44px)}
+  html[data-theme=abyss] .hero-sub{font-size:14px}
+  html[data-theme=abyss] .lib-controls{padding:0 16px;margin-bottom:22px}
+  html[data-theme=abyss] .grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:22px 14px;
+    padding:0 16px;
+  }
+}
