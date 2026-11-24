@@ -717,3 +717,239 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
   .rsvp-controls{bottom:12px;gap:10px}
   .rsvp-btn{width:42px;height:42px}
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   GRIMOIRE · Modern minimal interface refresh
+   Keeps the existing reader themes and behavior; refines the
+   library shell, controls, cards, and responsive surfaces.
+   ───────────────────────────────────────────────────────────── */
+html[data-theme=abyss]{
+  --bg:#f6f5f2;
+  --bg-2:#eeede8;
+  --surface:#ffffff;
+  --surface-hover:#f7f7f4;
+  --surface-active:rgba(31,43,36,.07);
+  --panel:rgba(250,249,246,.94);
+  --panel-solid:#fbfaf7;
+  --text:#242923;
+  --text-soft:#5e665e;
+  --muted:#899087;
+  --accent:#667d69;
+  --accent-ink:#fff;
+  --accent-soft:rgba(102,125,105,.15);
+  --line:rgba(37,48,39,.09);
+  --line-strong:rgba(37,48,39,.15);
+  --line-accent:rgba(102,125,105,.28);
+  --sel:rgba(102,125,105,.15);
+  --glow:radial-gradient(ellipse 70% 38% at 50% -12%,rgba(255,255,255,.95),transparent 72%);
+  --shadow:0 24px 70px -34px rgba(30,39,31,.24);
+  --shadow-sm:0 10px 28px -18px rgba(30,39,31,.2);
+  --grain:0;
+  --danger:#b75c50;
+  color-scheme:light;
+}
+html[data-theme=abyss] body{
+  background:var(--bg);
+  background-image:radial-gradient(ellipse at 50% -20%,rgba(255,255,255,.9),transparent 58%);
+}
+html[data-theme=abyss] .topbar{
+  background:rgba(246,245,242,.82);
+  border-bottom:1px solid var(--line);
+  backdrop-filter:blur(18px);
+}
+html[data-theme=abyss] .topbar-brand{
+  color:var(--text);
+  font-weight:750;
+  letter-spacing:.16em;
+}
+html[data-theme=abyss] .hero{
+  max-width:1320px;
+  margin-inline:auto;
+  align-items:flex-start;
+  text-align:left;
+  padding-top:clamp(54px,8vw,104px);
+  padding-bottom:clamp(28px,4vw,48px);
+  gap:12px;
+}
+html[data-theme=abyss] .hero .brand{
+  color:var(--text);
+  font-family:var(--ui-font);
+  font-size:clamp(34px,5vw,54px);
+  font-weight:650;
+  letter-spacing:-.065em;
+  line-height:1;
+  text-indent:0;
+}
+html[data-theme=abyss] .hero-sub{
+  color:var(--muted);
+  font-size:14px;
+  letter-spacing:.01em;
+}
+html[data-theme=abyss] .hero .rule{
+  width:100%;
+  max-width:none;
+  height:1px;
+  margin-top:18px;
+  background:var(--line);
+}
+html[data-theme=abyss] .lib-controls{
+  max-width:1320px;
+  margin:0 auto 28px;
+  gap:14px;
+}
+html[data-theme=abyss] .lib-search-wrap{
+  min-height:48px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(255,255,255,.78);
+  box-shadow:0 4px 18px rgba(30,39,31,.025);
+}
+html[data-theme=abyss] .lib-search-wrap:focus-within{
+  border-color:var(--line-accent);
+  box-shadow:0 0 0 4px rgba(102,125,105,.08);
+}
+html[data-theme=abyss] .lib-search{color:var(--text);font-size:13px}
+html[data-theme=abyss] .lib-search::placeholder{color:#a1a79f}
+html[data-theme=abyss] .seg-track{
+  padding:4px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(255,255,255,.72);
+}
+html[data-theme=abyss] .seg-track button,
+html[data-theme=abyss] .lib-sort{
+  border-radius:9px;
+  color:var(--text-soft);
+}
+html[data-theme=abyss] .seg-track button.active,
+html[data-theme=abyss] .seg-track button[aria-pressed=true]{
+  background:#e9eee8;
+  color:#405744;
+  box-shadow:none;
+}
+html[data-theme=abyss] .lib-sort{
+  min-height:40px;
+  border:1px solid var(--line);
+  background:#fff;
+  padding-inline:12px;
+}
+html[data-theme=abyss] .grid{
+  max-width:1320px;
+  grid-template-columns:repeat(auto-fill,minmax(156px,1fr));
+  gap:34px 26px;
+  padding-bottom:64px;
+}
+html[data-theme=abyss] .book-card{
+  border-radius:16px;
+  transition:transform .22s ease,box-shadow .22s ease;
+}
+html[data-theme=abyss] .book-card:hover{
+  transform:translateY(-4px);
+}
+html[data-theme=abyss] .book-cover,
+html[data-theme=abyss] .cover-wrap{
+  border-radius:12px;
+  box-shadow:0 12px 28px rgba(33,39,32,.12);
+  overflow:hidden;
+}
+html[data-theme=abyss] .book-title{
+  color:var(--text);
+  font-size:13px;
+  font-weight:650;
+  letter-spacing:-.015em;
+  line-height:1.4;
+}
+html[data-theme=abyss] .book-author,
+html[data-theme=abyss] .book-meta{color:var(--muted)}
+html[data-theme=abyss] .icon-btn{
+  border:1px solid transparent;
+  border-radius:11px;
+  color:var(--text-soft);
+  transition:background .18s ease,border-color .18s ease,color .18s ease;
+}
+html[data-theme=abyss] .icon-btn:hover{
+  background:#fff;
+  border-color:var(--line);
+  color:var(--text);
+}
+html[data-theme=abyss] .icon-btn--primary{
+  background:var(--accent);
+  color:#fff;
+  border-color:var(--accent);
+}
+html[data-theme=abyss] .icon-btn--primary:hover{background:#526b56;color:#fff}
+html[data-theme=abyss] .btn-ghost{
+  border:1px solid var(--line-strong);
+  border-radius:11px;
+  background:#fff;
+  color:var(--text);
+  transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+html[data-theme=abyss] .btn-ghost:hover{
+  background:#f0f3ee;
+  border-color:var(--line-accent);
+  transform:translateY(-1px);
+}
+html[data-theme=abyss] .btn-solid{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
+html[data-theme=abyss] .empty{
+  max-width:560px;
+  margin:34px auto 80px;
+  padding:48px 28px;
+  border:1px dashed var(--line-strong);
+  border-radius:22px;
+  background:rgba(255,255,255,.48);
+}
+html[data-theme=abyss] .empty-title{color:var(--text);font-weight:650}
+html[data-theme=abyss] .sigil{color:#a0ad9e;opacity:.8}
+html[data-theme=abyss] .offline-badge{
+  background:#e8efe7;
+  color:#526b56;
+  border-radius:999px;
+}
+html[data-theme=abyss] .sheet{
+  border:1px solid var(--line);
+  border-radius:20px;
+  box-shadow:0 24px 80px rgba(28,36,29,.18);
+  background:var(--panel-solid);
+}
+html[data-theme=abyss] .sheet-head{
+  border-bottom:1px solid var(--line);
+}
+html[data-theme=abyss] input,
+html[data-theme=abyss] select,
+html[data-theme=abyss] textarea{
+  accent-color:var(--accent);
+}
+@media (min-width:1024px){
+  html[data-theme=abyss] .topbar{padding-inline:max(32px,calc((100vw - 1320px)/2))}
+}
+@media (max-width:767px){
+  html[data-theme=abyss] .hero{
+    padding:42px 18px 24px;
+    gap:10px;
+  }
+  html[data-theme=abyss] .hero .brand{font-size:36px}
+  html[data-theme=abyss] .hero-sub{font-size:12px}
+  html[data-theme=abyss] .lib-controls{padding-inline:16px;margin-bottom:22px}
+  html[data-theme=abyss] .grid{
+    grid-template-columns:repeat(auto-fill,minmax(124px,1fr));
+    gap:24px 16px;
+    padding-inline:16px;
+  }
+  html[data-theme=abyss] .empty{
+    margin:20px 16px 56px;
+    padding:34px 18px;
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  html[data-theme=abyss] *,html[data-theme=abyss] *::before,html[data-theme=abyss] *::after{
+    scroll-behavior:auto!important;
+    transition-duration:.01ms!important;
+    animation-duration:.01ms!important;
+  }
+}
