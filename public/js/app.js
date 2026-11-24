@@ -1228,13 +1228,15 @@ let themeSeq = 0;
 
 function injectEpubStyles(doc) {
   if (!doc || !doc.head) return;
-  const fontsLink = $('#grimoire-fonts-css');
-  if (fontsLink && fontsLink.href && !doc.getElementById('grimoire-epub-fonts')) {
-    const link = doc.createElement('link');
-    link.id = 'grimoire-epub-fonts';
-    link.rel = 'stylesheet';
-    link.href = fontsLink.href;
-    doc.head.appendChild(link);
+  const fontLinks = document.querySelectorAll('link[rel="stylesheet"][href*="fonts.googleapis.com/css2"]');
+  if (fontLinks.length && !doc.getElementById('grimoire-epub-fonts')) {
+    fontLinks.forEach((source, index) => {
+      const link = doc.createElement('link');
+      if (index === 0) link.id = 'grimoire-epub-fonts';
+      link.rel = 'stylesheet';
+      link.href = source.href;
+      doc.head.appendChild(link);
+    });
   }
   const cs = getComputedStyle(document.documentElement);
   const bg = cs.getPropertyValue('--bg').trim();
