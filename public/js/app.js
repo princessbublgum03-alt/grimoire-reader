@@ -137,6 +137,7 @@ const DEFAULT_SETTINGS = {
   ttsPitch: 1,
   rsvpSpeed: 300,
   autoScrollSpeed: 5,
+  dailyGoalMinutes: 30,
   epubFlow: 'scrolled',
   epubTouchMigrated: true,
   updatedAt: 0
@@ -858,6 +859,10 @@ async function showStatsSheet() {
   const mins = totalMins % 60;
   const timeStr = hrs > 0 ? `${hrs} ч ${mins} м` : `${mins} мин`;
   const wordsStr = (stats.words || 0).toLocaleString('ru-RU');
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayMinutes = stats.dailyDate === todayKey ? (stats.dailyMinutes || 0) : 0;
+  const dailyGoal = Math.max(5, Number(settings.dailyGoalMinutes) || 30);
+  const dailyPct = Math.min(100, Math.round(todayMinutes / dailyGoal * 100));
 
   const html = `
   <div class="stat-grid">
@@ -865,6 +870,7 @@ async function showStatsSheet() {
     <div class="stat-card"><div class="stat-val">${finished}</div><div class="stat-lbl">Прочитано книг</div></div>
     <div class="stat-card"><div class="stat-val">${timeStr}</div><div class="stat-lbl">Время за чтением</div></div>
     <div class="stat-card"><div class="stat-val">${wordsStr}</div><div class="stat-lbl">Прочитано слов</div></div>
+    <div class="stat-card stat-card--goal"><div class="stat-val">${todayMinutes} / ${dailyGoal} мин</div><div class="stat-lbl">Цель на сегодня · ${dailyPct}%</div><div class="daily-goal-track"><i style="width:${dailyPct}%"></i></div></div>
   </div>
   <div class="stat-grid" style="margin-top:-8px">
     <div class="stat-card"><div class="stat-val">${notes.length}</div><div class="stat-lbl">Сохранённых цитат</div></div>
@@ -916,7 +922,11 @@ const state = {
   readingTickAt: null,
   sessionMs: 0,
   lastWordsRatio: 0,
-  sessionWords: 0
+  sessionWords: 0,
+  focusSessionElapsedMs: 0,
+  focusSessionGoalMs: 0,
+  focusSessionLastTickAt: null,
+  focusSessionTimer: null
 };
 
 const fullTextCache = new LRUCache(3);
@@ -968,6 +978,9 @@ async function flushReadingSession() {
       const stats = (await DB.get('kv', 'stats')) || { minutes: 0, words: 0 };
       stats.minutes = (stats.minutes || 0) + wholeMinutes;
       stats.words = (stats.words || 0) + wordsDelta;
+      const today = new Date().toISOString().slice(0, 10);
+      if (stats.dailyDate !== today) { stats.dailyDate = today; stats.dailyMinutes = 0; }
+      stats.dailyMinutes = (stats.dailyMinutes || 0) + wholeMinutes;
       await DB.put('kv', stats, 'stats');
     } catch { /* ignore */ }
   }
@@ -1472,6 +1485,7 @@ function pageUp() {
 }
 
 async function closeReader() {
+  endReadingRitual(false);
   stopAllActions();
   stopStatsTracking();
   await flushReadingSession();
@@ -2112,11 +2126,74 @@ function showPasteTextSheet() {
   });
 }
 
+/* ---------- Ритуал и таймер глубокого чтения ---------- */
+function formatSessionTime(ms) {
+  const seconds = Math.max(0, Math.ceil(ms / 1000));
+  return String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
+}
+
+function updateReadingSessionUI() {
+  const chip = $('#reading-session-chip');
+  const label = $('#reading-session-time');
+  if (!chip || !label || !state.focusSessionGoalMs) return;
+  const remaining = Math.max(0, state.focusSessionGoalMs - state.focusSessionElapsedMs);
+  label.textContent = formatSessionTime(remaining);
+  chip.hidden = false;
+  chip.classList.toggle('is-ending', remaining <= 60000);
+}
+
+function endReadingRitual(completed = false) {
+  if (state.focusSessionTimer) clearInterval(state.focusSessionTimer);
+  state.focusSessionTimer = null;
+  state.focusSessionGoalMs = 0;
+  state.focusSessionElapsedMs = 0;
+  state.focusSessionLastTickAt = null;
+  const chip = $('#reading-session-chip');
+  if (chip) { chip.hidden = true; chip.classList.remove('is-ending'); }
+  if ($('#reader') && !$('#reader').hidden) setBars(true);
+  if (completed) toast('Ритуал завершён. Отличная работа — ты уделил книге время.');
+}
+
+function beginReadingRitual(minutes) {
+  endReadingRitual(false);
+  state.focusSessionGoalMs = Math.max(5, Number(minutes) || 25) * 60000;
+  state.focusSessionElapsedMs = 0;
+  state.focusSessionLastTickAt = document.visibilityState === 'visible' ? Date.now() : null;
+  updateReadingSessionUI();
+  setBars(false);
+  state.focusSessionTimer = setInterval(() => {
+    const now = Date.now();
+    if (document.visibilityState === 'visible' && state.focusSessionLastTickAt) state.focusSessionElapsedMs += Math.min(2000, Math.max(0, now - state.focusSessionLastTickAt));
+    state.focusSessionLastTickAt = document.visibilityState === 'visible' ? now : null;
+    if (state.focusSessionElapsedMs >= state.focusSessionGoalMs) { endReadingRitual(true); return; }
+    updateReadingSessionUI();
+  }, 1000);
+}
+
+function showReadingRitualSheet() {
+  const html = '<div class="ritual-intro"><div class="ritual-mark">✦</div><p>Оставь суету за пределами страницы. Выбери время — остальное подождёт.</p></div>' +
+    '<div class="field"><label>Продолжительность погружения</label><div class="seg ritual-duration" data-ritual-duration>' +
+    [15, 25, 45, 60].map((n) => '<button type="button" data-minutes="' + n + '" class="' + (n === 25 ? 'on' : '') + '">' + n + ' мин</button>').join('') +
+    '</div></div><p class="hint ritual-hint">Таймер учитывает только время, когда вкладка открыта и видима.</p><div class="ritual-actions"><button type="button" class="btn-ghost btn-solid" id="btn-begin-ritual">Начать погружение</button></div>';
+  const ov = openSheet('Тихий ритуал', html);
+  let minutes = 25;
+  ov._body.querySelector('[data-ritual-duration]').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-minutes]');
+    if (!b) return;
+    minutes = Number(b.dataset.minutes);
+    ov._body.querySelectorAll('[data-minutes]').forEach((x) => x.classList.toggle('on', x === b));
+  });
+  ov._body.querySelector('#btn-begin-ritual').addEventListener('click', () => { closeSheet(); beginReadingRitual(minutes); toast('Погружение началось. Приятного чтения.'); });
+}
+
 /* ---------- Панель Концентрации (СДВГ / Глубокое чтение) ---------- */
 function showFocusPanel() {
   const liveNoise = noiseController.getState().mode;
   const volPct = Math.round((settings.noiseVolume ?? 0.25) * 100);
+  const dailyGoal = Math.max(5, Number(settings.dailyGoalMinutes) || 30);
   const html = `
+    <div class="ritual-launch-card"><div><div class="focus-name">Тихий ритуал</div><div class="focus-desc">Спрячь панели и посвяти книге 15–60 минут</div></div><button type="button" class="btn-ghost btn-solid" id="btn-start-ritual">Начать</button></div>
+    <div class="field daily-goal-field"><label>Ежедневная цель чтения</label><div class="seg" data-daily-goal>${[15,30,45,60].map((n) => '<button type="button" data-goal="' + n + '" class="' + (dailyGoal === n ? 'on' : '') + '">' + n + ' мин</button>').join('')}</div></div>
     <div class="focus-presets">
       <button type="button" class="btn-ghost btn-solid" id="btn-preset-adhd">СДВГ-фокус</button>
       <button type="button" class="btn-ghost" id="btn-preset-clear">Сбросить режимы</button>
@@ -2188,6 +2265,15 @@ function showFocusPanel() {
 
   const ov = openSheet('Концентрация', html);
   const B = ov._body;
+  B.querySelector('#btn-start-ritual').addEventListener('click', showReadingRitualSheet);
+  B.querySelector('[data-daily-goal]').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-goal]');
+    if (!b) return;
+    settings.dailyGoalMinutes = Number(b.dataset.goal);
+    B.querySelectorAll('[data-goal]').forEach((x) => x.classList.toggle('on', x === b));
+    saveSettings();
+    toast('Цель на день: ' + settings.dailyGoalMinutes + ' минут');
+  });
 
   const syncButtons = () => {
     B.querySelectorAll('[data-toggle]').forEach((btn) => {
@@ -2706,6 +2792,7 @@ function bindEvents() {
   on('#btn-prev', 'click', goPrev);
   on('#btn-next', 'click', goNext);
   on('#btn-focus-panel', 'click', showFocusPanel);
+  on('#btn-end-reading-session', 'click', () => endReadingRitual(false));
   on('#btn-bionic-quick', 'click', () => {
     settings.bionicReading = !settings.bionicReading;
     applySettings();
@@ -2962,6 +3049,7 @@ function bindEvents() {
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
+      state.focusSessionLastTickAt = null;
       flushReadingSession();
       if (state.rendition) {
         try {
@@ -2971,6 +3059,7 @@ function bindEvents() {
       }
     } else {
       state.readingTickAt = Date.now();
+      if (state.focusSessionGoalMs) state.focusSessionLastTickAt = Date.now();
     }
   });
 
