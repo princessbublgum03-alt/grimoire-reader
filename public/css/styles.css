@@ -953,3 +953,27 @@ html[data-theme=abyss] textarea{
     animation-duration:.01ms!important;
   }
 }
+
+
+/* Deep reading ritual */
+#reading-session-chip{position:fixed;z-index:90;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line-strong);border-radius:999px;background:var(--panel-solid);color:var(--text);box-shadow:var(--shadow-sm);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:12px;white-space:nowrap}
+#reading-session-chip[hidden]{display:none!important}
+#reading-session-chip strong{font-variant-numeric:tabular-nums;font-size:14px;letter-spacing:.04em}
+#reading-session-chip button{border:0;border-left:1px solid var(--line);padding:2px 0 2px 10px;background:transparent;color:var(--muted);font-size:11px;cursor:pointer}
+#reading-session-chip button:hover{color:var(--text)}
+.session-pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+#reading-session-chip.is-ending .session-pulse{background:#c58b55;box-shadow:0 0 0 4px rgba(197,139,85,.14)}
+.ritual-intro{text-align:center;padding:8px 12px 20px}
+.ritual-mark{font-size:28px;color:var(--accent);margin-bottom:8px}
+.ritual-intro p{max-width:340px;margin:0 auto;color:var(--text-soft);font-family:var(--reader-font);font-size:16px;line-height:1.65}
+.ritual-hint{text-align:center;max-width:360px;margin:0 auto 16px}
+.ritual-actions{display:flex;justify-content:center}
+.ritual-actions .btn-ghost{min-width:210px;padding:13px 20px}
+.ritual-duration{flex-wrap:nowrap}
+.ritual-duration button{min-width:0}
+.ritual-launch-card{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--bg-2);margin-bottom:18px}
+.daily-goal-field{margin-bottom:20px}
+.daily-goal-track{height:3px;margin-top:8px;background:var(--line);border-radius:999px;overflow:hidden}
+.daily-goal-track i{display:block;height:100%;background:var(--accent);border-radius:inherit}
+.stat-card--goal{grid-column:span 2}
+@media(max-width:420px){#reading-session-chip{bottom:calc(62px + env(safe-area-inset-bottom));gap:7px;padding:8px 10px}.session-caption{display:none}.ritual-duration button{font-size:11px;padding-inline:5px}.stat-card--goal{grid-column:span 2}}
