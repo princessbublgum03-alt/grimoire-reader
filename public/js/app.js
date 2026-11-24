@@ -114,7 +114,7 @@ const FONTS = {
 const SETTINGS_LS_KEY = 'grimoire_settings_v1';
 
 const DEFAULT_SETTINGS = {
-  theme: 'abyss',
+  theme: 'oldbook',
   fontSize: 20,
   lineHeight: 1.7,
   letterSpacing: 0,
@@ -143,14 +143,18 @@ const DEFAULT_SETTINGS = {
   updatedAt: 0
 };
 
-const THEMES = ['abyss', 'graphite', 'soft', 'parchment', 'sepia', 'forest', 'void'];
-const LIGHT_THEMES = new Set(['soft', 'parchment']);
+const THEMES = ['abyss', 'graphite', 'soft', 'oldbook', 'parchment', 'sage', 'rose', 'sepia', 'coffee', 'forest', 'void'];
+const LIGHT_THEMES = new Set(['soft', 'oldbook', 'parchment', 'sage', 'rose']);
 const THEME_NAMES = {
   abyss: 'Обсидиан',
   graphite: 'Графит',
   soft: 'Светлая',
+  oldbook: 'Старая книга',
   parchment: 'Бумага',
+  sage: 'Шалфей',
+  rose: 'Розовая пудра',
   sepia: 'Сумерки',
+  coffee: 'Кофейная',
   forest: 'Мрак',
   void: 'OLED'
 };
@@ -158,8 +162,12 @@ const THEME_COLORS = {
   abyss: '#08090b',
   graphite: '#14161a',
   soft: '#f4f4f2',
+  oldbook: '#eee2ca',
   parchment: '#f2ece0',
+  sage: '#e7ede4',
+  rose: '#f1e4e2',
   sepia: '#161311',
+  coffee: '#211914',
   forest: '#0a0e0c',
   void: '#000000'
 };
@@ -167,13 +175,17 @@ const THEME_SWATCHES = {
   abyss: { bg: '#08090b', fg: '#e6e8ec' },
   graphite: { bg: '#14161a', fg: '#d8dbe2' },
   soft: { bg: '#f4f4f2', fg: '#141518' },
+  oldbook: { bg: '#eee2ca', fg: '#38291d' },
   parchment: { bg: '#f2ece0', fg: '#231f1b' },
+  sage: { bg: '#e7ede4', fg: '#293a30' },
+  rose: { bg: '#f1e4e2', fg: '#49302f' },
   sepia: { bg: '#161311', fg: '#dcd3c6' },
+  coffee: { bg: '#211914', fg: '#ead8bf' },
   forest: { bg: '#0a0e0c', fg: '#cdd6d0' },
   void: { bg: '#000000', fg: '#b2b6be' }
 };
 let lastDarkTheme = 'abyss';
-let lastLightTheme = 'soft';
+let lastLightTheme = 'oldbook';
 
 function readLocalSettings() {
   try {
